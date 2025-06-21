@@ -173,7 +173,7 @@ build: $(OUT_DIR) $(FINAL_IMG)
 disasm:
 	$(OBJDUMP) $(OUT_ELF) | less
 
-run: build justrun
+run:clean_qemu build justrun
 
 justrun:
 	$(call run_qemu)
@@ -227,7 +227,15 @@ clean_c::
 	rm -rf ulib/axlibc/build_*
 	rm -rf $(app-objs)
 
+clean_qemu:
+	@killall -q qemu-system-x86_64 qemu-system-aarch64 qemu-system-riscv64 || true
+
 .PHONY: all defconfig oldconfig \
 	build disasm run justrun debug \
 	clippy doc doc_check_missing fmt fmt_c unittest unittest_no_fail_fast \
-	disk_img clean clean_c
+	disk_img clean clean_c \
+	clean_qemu
+
+# 【【【新增的调试行】】】
+$(warning Final NET value is: [$(NET)])
+$(warning Final NET_DEV value is: [$(NET_DEV)])

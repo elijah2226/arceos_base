@@ -54,7 +54,12 @@ qemu_args-$(NET) += \
   -device virtio-net-$(vdev-suffix),netdev=net0
 
 ifeq ($(NET_DEV), user)
-  qemu_args-$(NET) += -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555
+  HOSTFWD ?= n  # <--- 默认不开启，自动化测试会走这条路
+  net_user_args := -netdev user,id=net0
+  ifeq ($(HOSTFWD), y) # <--- 只有当你手动要求时
+    net_user_args += ,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555
+  endif
+  qemu_args-$(NET) += $(net_user_args)
 else ifeq ($(NET_DEV), tap)
   qemu_args-$(NET) += -netdev tap,id=net0,script=scripts/net/qemu-ifup.sh,downscript=no,vhost=$(VHOST),vhostforce=$(VHOST)
   QEMU := sudo $(QEMU)

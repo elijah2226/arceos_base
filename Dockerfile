@@ -1,15 +1,13 @@
 FROM rust:slim
 
-RUN apt-get update && apt-get install -y wget
-
-RUN echo /etc/apt/sources.list << deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm main
-RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libclang-19-dev make python3 \
-    xz-utils python3-venv ninja-build bzip2 meson \
-    pkg-config libglib2.0-dev git libslirp-dev cmake dosfstools build-essential \
-    && rm -rf /var/lib/apt/lists/*
+&& apt-get install -y --no-install-recommends libclang-19-dev wget make python3 \
+xz-utils python3-venv ninja-build bzip2 meson \
+pkg-config libglib2.0-dev git libslirp-dev cmake dosfstools build-essential \
+&& rm -rf /var/lib/apt/lists/*
+
+RUN echo "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm main" >> echo /etc/apt/sources.list  
+RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
 
 RUN cargo install cargo-binutils axconfig-gen
 
