@@ -55,8 +55,12 @@ V ?=
 TARGET_DIR ?= $(PWD)/target
 APP_FEATURES ?=
 UIMAGE ?= n
-IP ?= 10.0.2.15
-GW ?= 10.0.2.2
+ifeq ($(strip $(IP)),)
+  IP = 10.0.2.15
+endif
+ifeq ($(strip $(GW)),)
+  GW = 10.0.2.2
+endif
 DISK_IMG ?= $(if $(filter test,$(BUILD_SCENARIO)),$(AX_TESTCASE)_disk.img,disk.img)
 NET_DEV ?= user
 
@@ -85,6 +89,22 @@ export AX_LOG=$(LOG)
 export AX_TARGET=$(TARGET)
 OUT_CONFIG := $(PWD)/.axconfig.toml
 export AX_CONFIG_PATH=$(OUT_CONFIG)
+export AX_IP=$(IP)
+# 将 Makefile 内部的 IP 变量导出为 AX_IP
+export AX_GW=$(GW)
+# 将 Makefile 内部的 GW 变量导出为 AX_GW
+
+# --- START DEBUGGING LOGS ---
+.PHONY: debug-vars
+debug-vars:
+	@echo "--- Makefile Debug Info ---"
+	@echo "Current IP (Makefile var): $(IP)"
+	@echo "Current GW (Makefile var): $(GW)"
+	@echo "AX_IP (exported env): $(AX_IP)"
+	@echo "AX_GW (exported env): $(AX_GW)"
+	@echo "BUILD_SCENARIO: $(BUILD_SCENARIO)"
+	@echo "--- End Makefile Debug Info ---"
+# --- END DEBUGGING LOGS ---
 
 OBJDUMP ?= rust-objdump -d --print-imm-hex --x86-asm-syntax=intel
 OBJCOPY ?= rust-objcopy --binary-architecture=$(ARCH)

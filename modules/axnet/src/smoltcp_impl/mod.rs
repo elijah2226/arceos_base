@@ -320,6 +320,15 @@ pub(crate) fn init(net_dev: AxNetDevice) {
     let ether_addr = EthernetAddress(net_dev.mac_address().0);
     let eth0 = InterfaceWrapper::new("eth0", net_dev, ether_addr);
 
+    info!(
+        "DEBUG: AX_IP env value at compile time (via env_or_default!): \"{}\"",
+        IP
+    );
+    info!(
+        "DEBUG: AX_GW env value at compile time (via env_or_default!): \"{}\"",
+        GATEWAY
+    );
+
     let ip = IP.parse().expect("invalid IP address");
     let gateway = GATEWAY.parse().expect("invalid gateway IP address");
     eth0.setup_ip_addr(ip, IP_PREFIX);

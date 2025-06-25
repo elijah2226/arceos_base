@@ -76,21 +76,23 @@ uspace = ["paging", "tls", "axhal/uspace"]
 
 linux_compat = [
     "paging", "uspace", "irq", "multitask", "fs", 
-    # "net",
+    "net",
     "axns/thread-local", # <--- 确保启用
     "axlinux", "axlinux/task", "axlinux/fs", 
-    # "axlinux/net",
+    "axlinux/net",
 ]
 
 # --- 【【【新增：为 normal 模式添加一个特性】】】 ---
 # 这个特性用于在非测试场景下，启用 axlinux 的基本模式。
 linux_normal_mode = [
     "paging",
+    "net",
     "irq",              # 兼容层需要中断和定时器支持
     "multitask",        # 兼容层需要多任务支持
     "axns/thread-local",# 兼容层需要线程局部命名空间
     "axlinux",          # 确保 axlinux 库本身被启用
-    "axlinux/normal_mode" # 启用 axlinux 内部的 `normal_mode` 特性
+    "axlinux/normal_mode", # 启用 axlinux 内部的 `normal_mode` 特性
+    "axlinux/net",
 ]
 
 [dependencies]
