@@ -58,6 +58,7 @@ UIMAGE ?= n
 IP ?= 10.0.2.15
 GW ?= 10.0.2.2
 DISK_IMG ?= $(if $(filter test,$(BUILD_SCENARIO)),$(AX_TESTCASE)_disk.img,disk.img)
+NET_DEV ?= user
 
 ifneq ($(wildcard $(APP)/Cargo.toml),)
   APP_TYPE := rust
@@ -117,10 +118,13 @@ build: user_apps $(OUT_DIR) $(FINAL_IMG)
 run: build
 	$(call run_qemu)
 
+justrun: build
+	$(call run_qemu)
+
 # The 'test' target is a shortcut for running in test scenario
 test:
 	@echo "======> Entering TEST scenario..."
-	@$(MAKE) run BUILD_SCENARIO=test AX_TESTCASE=$(or $(AX_TESTCASE),nimbos)
+
 
 justrun: run
 debug: build

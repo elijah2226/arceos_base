@@ -75,9 +75,11 @@ log-level-trace = ["axlog/log-level-trace"]
 uspace = ["paging", "tls", "axhal/uspace"]
 
 linux_compat = [
-    "paging", "uspace", "irq", "multitask", "fs", "net",
+    "paging", "uspace", "irq", "multitask", "fs", 
+    # "net",
     "axns/thread-local", # <--- 确保启用
-    "axlinux", "axlinux/task", "axlinux/fs", "axlinux/net"
+    "axlinux", "axlinux/task", "axlinux/fs", 
+    # "axlinux/net",
 ]
 
 # --- 【【【新增：为 normal 模式添加一个特性】】】 ---
