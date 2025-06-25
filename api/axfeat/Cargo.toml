@@ -74,21 +74,10 @@ log-level-trace = ["axlog/log-level-trace"]
 # 我们把这些依赖都封装在这里。
 uspace = ["paging", "tls", "axhal/uspace"]
 
-# --- 【【【最终的 linux_compat 特性】】】 ---
-# 它现在只描述业务逻辑上的依赖，非常清晰。
 linux_compat = [
-    "paging",
-    "uspace",           # 我需要完整的用户空间支持
-    "multitask",        # 我需要多任务支持
-    "fs",               # 我需要文件系统支持
-    "net",              # 我需要网络支持
-    "irq",              # 系统调用和调度需要中断
-    "dep:axns",         # 为 axns 模块启用 thread-local 功能
-    "axns/thread-local",# 为 axns 启用特性
-    "axlinux",          # 启用 axlinux 库
-    "axlinux/task",     # 为 axlinux 库启用 "task" 功能
-    "axlinux/fs",       # 为 axlinux 库启用 "fs" 功能
-    "axlinux/net",      # 为 axlinux 库启用 "net" 功能
+    "paging", "uspace", "irq", "multitask", "fs", "net",
+    "axns/thread-local", # <--- 确保启用
+    "axlinux", "axlinux/task", "axlinux/fs", "axlinux/net"
 ]
 
 # --- 【【【新增：为 normal 模式添加一个特性】】】 ---

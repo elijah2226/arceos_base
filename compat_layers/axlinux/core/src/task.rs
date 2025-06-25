@@ -30,6 +30,8 @@ use memory_addr::VirtAddrRange;
 use spin::{Once, RwLock};
 use weak_map::WeakMap;
 
+use axlog::info;
+
 use crate::{futex::FutexTable, time::TimeStat};
 
 /// Create a new user task.
@@ -282,6 +284,8 @@ struct AxNamespaceImpl;
 #[crate_interface::impl_interface]
 impl AxNamespaceIf for AxNamespaceImpl {
     fn current_namespace_base() -> *mut u8 {
+        info!("[STARRY-CORE] AxNamespaceIf implementation CALLED!"); // <--- 加入这行
+        // ... 原来的实现 ...
         // Namespace for kernel task
         static KERNEL_NS_BASE: Once<usize> = Once::new();
         let current = axtask::current();

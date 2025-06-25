@@ -18,3 +18,4 @@ axruntime = { workspace = true } # 必须直接依赖，以获取 panic_handler
 axlinux = { workspace = true }
 axstd = { workspace = true }
 axfeat = { workspace = true }
+axns = { workspace = true } # <--- 加入这一行

@@ -11,6 +11,7 @@ MODE ?= release
 LOG  ?= info
 SMP  ?= 1
 BUS  ?= pci
+MEM ?= 128M
 NO_AXSTD := y
 override FEATURES += linux_normal_mode
 EXTRA_CONFIG ?= $(PWD)/configs/Monolithic/$(ARCH).toml
