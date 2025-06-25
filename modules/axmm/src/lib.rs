@@ -68,11 +68,14 @@ pub fn kernel_page_table_root() -> PhysAddr {
 /// fine-grained kernel page table.
 pub fn init_memory_management() {
     info!("Initialize virtual memory management...");
+    info!("[AXMM] init_memory_management() STARTED."); // <--- 加入这行
 
     let kernel_aspace = new_kernel_aspace().expect("failed to initialize kernel address space");
     debug!("kernel address space init OK: {:#x?}", kernel_aspace);
     KERNEL_ASPACE.init_once(SpinNoIrq::new(kernel_aspace));
     axhal::paging::set_kernel_page_table_root(kernel_page_table_root());
+
+    info!("[AXMM] init_memory_management() FINISHED."); // <--- 加入这行
 }
 
 /// Initializes kernel paging for secondary CPUs.

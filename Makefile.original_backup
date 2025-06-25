@@ -168,6 +168,9 @@ defconfig: _axconfig-gen
 oldconfig: _axconfig-gen
 	$(call oldconfig)
 
+# 【【【在此处添加调试信息】】】
+$(warning [From Makefile] build depends on FINAL_IMG=[$(FINAL_IMG)])
+
 build: $(OUT_DIR) $(FINAL_IMG)
 
 disasm:

@@ -68,6 +68,40 @@ log-level-info = ["axlog/log-level-info"]
 log-level-debug = ["axlog/log-level-debug"]
 log-level-trace = ["axlog/log-level-trace"]
 
+
+# --- 【【【定义一个健壮的 uspace 特性】】】 ---
+# 用户空间支持是一个复杂的概念，它依赖于分页、TLS 和 HAL 层的支持。
+# 我们把这些依赖都封装在这里。
+uspace = ["paging", "tls", "axhal/uspace"]
+
+# --- 【【【最终的 linux_compat 特性】】】 ---
+# 它现在只描述业务逻辑上的依赖，非常清晰。
+linux_compat = [
+    "paging",
+    "uspace",           # 我需要完整的用户空间支持
+    "multitask",        # 我需要多任务支持
+    "fs",               # 我需要文件系统支持
+    "net",              # 我需要网络支持
+    "irq",              # 系统调用和调度需要中断
+    "dep:axns",         # 为 axns 模块启用 thread-local 功能
+    "axns/thread-local",# 为 axns 启用特性
+    "axlinux",          # 启用 axlinux 库
+    "axlinux/task",     # 为 axlinux 库启用 "task" 功能
+    "axlinux/fs",       # 为 axlinux 库启用 "fs" 功能
+    "axlinux/net",      # 为 axlinux 库启用 "net" 功能
+]
+
+# --- 【【【新增：为 normal 模式添加一个特性】】】 ---
+# 这个特性用于在非测试场景下，启用 axlinux 的基本模式。
+linux_normal_mode = [
+    "paging",
+    "irq",              # 兼容层需要中断和定时器支持
+    "multitask",        # 兼容层需要多任务支持
+    "axns/thread-local",# 兼容层需要线程局部命名空间
+    "axlinux",          # 确保 axlinux 库本身被启用
+    "axlinux/normal_mode" # 启用 axlinux 内部的 `normal_mode` 特性
+]
+
 [dependencies]
 axruntime = { workspace = true }
 axhal = { workspace = true }
@@ -80,3 +114,5 @@ axdisplay = { workspace = true, optional = true }
 axsync = { workspace = true, optional = true }
 axtask = { workspace = true, optional = true }
 kspin = { version = "0.1", optional = true }
+axlinux = { workspace = true, optional = true }
+axns = { workspace = true, optional = true }

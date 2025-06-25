@@ -25,8 +25,17 @@ ifeq ($(MAKECMDGOALS), doc_check_missing)
   RUSTDOCFLAGS += -D missing-docs
 endif
 
+# --- CORRECTED cargo_build macro ---
 define cargo_build
-  $(call run_cmd,cargo -C $(1) build,$(build_args) --features "$(strip $(2))")
+	# $(1) is the package directory, e.g., 'arceos-main'
+	# $(2) is the list of features
+	# We use the directory name directly as the package name, as they match.
+	@echo "    Building package '$(1)' from workspace root..."
+	$(call run_cmd,cargo build \
+		-p $(1) \
+		$(build_args) \
+		$(if $(2),--features "$(strip $(2))") \
+	)
 endef
 
 clippy_args := -A clippy::new_without_default -A unsafe_op_in_unsafe_fn

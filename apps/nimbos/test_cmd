@@ -1,0 +1,1 @@
+test_one "LOG=info FEATURES=fp_simd BLK=y NET=y"

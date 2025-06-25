@@ -1,0 +1,50 @@
+# /starry/.arceos/compat_layers/axlinux/Cargo.toml (改造后)
+
+[package]
+name = "axlinux"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+# 【关键】添加 [lib] 段，明确它是一个库 (library crate)
+[lib]
+crate-type = ["rlib"]
+
+[features]
+# 它的内部特性保持不变，这些特性将由 axfeat 来控制
+default = []
+task = ["dep:axtask", "dep:axprocess", "dep:axsignal", "dep:axhal", "dep:axsync", "dep:starry-api", "dep:starry-core"]
+fs   = ["dep:axfs", "dep:starry-api", "dep:starry-core"]
+net  = ["dep:axnet", "dep:starry-api", "dep:starry-core"]
+normal_mode = ["task", "fs"]
+
+[dependencies]
+# 2. 依赖所有 starry-api 和 starry-core 需要的 ArceOS 模块
+axtask    = { workspace = true, optional = true }
+axmm      = { workspace = true, optional = true }
+axhal     = { workspace = true, optional = true }
+axfs      = { workspace = true, optional = true }
+axnet     = { workspace = true, optional = true }
+axsync    = { workspace = true, optional = true }
+axprocess = { workspace = true, optional = true }
+axsignal  = { workspace = true, optional = true }
+
+# --- 必要的工具和第三方库 ---
+axconfig  = { workspace = true }
+axlog     = { workspace = true }
+axerrno   = { workspace = true }
+bitflags  = { workspace = true }
+cfg-if    = { workspace = true }
+lazy_static = { workspace = true }
+linkme    = { workspace = true }
+linux-raw-sys = { workspace = true }
+log       = { workspace = true }
+memory_addr = { workspace = true }
+spin      = { workspace = true }
+syscalls  = { workspace = true }
+shlex     = { workspace = true }
+
+# 1. 依赖自己的内部模块
+starry-api = { path = "./api", optional = true }
+starry-core = { path = "./core", optional = true }

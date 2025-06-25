@@ -1,0 +1,20 @@
+# arceos-main/Cargo.toml
+
+[package]
+name = "arceos-main"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+# 明确这是一个二进制文件，入口是 src/main.rs
+[[bin]]
+name = "arceos-main"
+path = "src/main.rs"
+
+[dependencies]
+# 只保留应用层和特性总开关的依赖
+axruntime = { workspace = true } # 必须直接依赖，以获取 panic_handler
+axlinux = { workspace = true }
+axstd = { workspace = true }
+axfeat = { workspace = true }

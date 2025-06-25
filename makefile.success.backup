@@ -1,0 +1,130 @@
+# ==============================================================================
+# ArceOS Unikernel Makefile (Final, Complete & Solidified Version)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Part 1: Our Solidified High-Level Configuration
+# ------------------------------------------------------------------------------
+ARCH ?= x86_64
+APP  ?= arceos-main
+MODE ?= release
+LOG  ?= info
+SMP  ?= 1
+BUS  ?= pci
+NO_AXSTD := y
+override FEATURES += linux_normal_mode
+EXTRA_CONFIG ?= $(PWD)/configs/Monolithic/$(ARCH).toml
+MEM ?= 128M
+
+# ------------------------------------------------------------------------------
+# Part 2: Replicate the Original ArceOS Build System Structure
+# ------------------------------------------------------------------------------
+# These variables are needed by the included scripts.
+PLATFORM ?=
+V ?=
+TARGET_DIR ?= $(PWD)/target
+APP_FEATURES ?=
+UIMAGE ?= n
+IP ?= 10.0.2.15
+GW ?= 10.0.2.2
+DISK_IMG ?= $(if $(filter test,$(SCENARIO)),$(AX_TESTCASE)_disk.img,disk.img)
+
+# Determine APP_TYPE
+ifneq ($(wildcard $(APP)/Cargo.toml),)
+  APP_TYPE := rust
+else
+  APP_TYPE := c
+endif
+
+# Include core logic scripts
+include scripts/make/features.mk
+include scripts/make/platform.mk
+
+# Define Target and Export environment variables
+ifeq ($(ARCH), x86_64)
+  TARGET := x86_64-unknown-none
+else ifeq ($(ARCH), aarch64)
+  TARGET := aarch64-unknown-none
+else ifeq ($(ARCH), riscv64)
+  TARGET := riscv64gc-unknown-none-elf
+else
+  $(error "Unsupported ARCH: $(ARCH)")
+endif
+export AX_ARCH=$(ARCH)
+export AX_PLATFORM=$(PLAT_NAME)
+export AX_MODE=$(MODE)
+export AX_LOG=$(LOG)
+export AX_TARGET=$(TARGET)
+OUT_CONFIG := $(PWD)/.axconfig.toml
+export AX_CONFIG_PATH=$(OUT_CONFIG)
+
+# Define Tools
+OBJDUMP ?= rust-objdump -d --print-imm-hex --x86-asm-syntax=intel
+OBJCOPY ?= rust-objcopy --binary-architecture=$(ARCH)
+GDB ?= gdb-multiarch
+
+# Define Paths
+OUT_DIR ?= $(APP)
+APP_NAME := $(shell basename $(APP))
+LD_SCRIPT := $(TARGET_DIR)/$(TARGET)/$(MODE)/linker_$(PLAT_NAME).lds
+OUT_ELF := $(OUT_DIR)/$(APP_NAME)_$(PLAT_NAME).elf
+OUT_BIN := $(patsubst %.elf,%.bin,$(OUT_ELF))
+OUT_UIMG := $(patsubst %.elf,%.uimg,$(OUT_ELF))
+ifeq ($(UIMAGE), y)
+  FINAL_IMG := $(OUT_UIMG)
+else
+  FINAL_IMG := $(OUT_BIN)
+endif
+
+# ------------------------------------------------------------------------------
+# Part 3: Include ALL remaining scripts and define ALL targets
+# ------------------------------------------------------------------------------
+# This part is crucial and was missing in the previous version.
+# It brings in all the rule definitions.
+include scripts/make/utils.mk
+include scripts/make/config.mk
+include scripts/make/build.mk
+include scripts/make/qemu.mk
+
+# Define all user-facing targets exactly as in the original Makefile
+# This ensures that all dependencies like `oldconfig` are known.
+.PHONY: all build run justrun debug disasm oldconfig defconfig clean clippy doc fmt
+
+all: build
+
+build: $(OUT_DIR) $(FINAL_IMG)
+
+run: build
+	$(call run_qemu)
+
+justrun: run
+
+debug: build
+	$(call run_qemu_debug) & \
+	sleep 1 && \
+	$(GDB) $(OUT_ELF) \
+	  -ex 'target remote localhost:1234' \
+	  -ex 'b rust_main' \
+	  -ex 'continue'
+
+disasm: build
+	$(OBJDUMP) $(OUT_ELF) | less
+
+defconfig: _axconfig-gen
+	$(call defconfig)
+
+oldconfig: _axconfig-gen
+	$(call oldconfig)
+
+clippy: oldconfig
+	$(call cargo_clippy)
+
+doc: oldconfig
+	$(call cargo_doc)
+
+fmt:
+	cargo fmt --all
+
+clean:
+	rm -rf $(APP)/*.bin $(APP)/*.elf $(OUT_CONFIG)
+	cargo clean
