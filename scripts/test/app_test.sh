@@ -34,15 +34,15 @@ function run_and_compare() {
     local make_args=$1
     local actual_out=$2
 
-    echo -e "\n  [BUILD] Executing: make -f makefile -C $ROOT $make_args build" >> "$actual_out"
-    make -f makefile -C "$ROOT" $make_args build >> "$actual_out" 2>&1
+    echo -e "\n  [BUILD] Executing: make -f Makefile -C $ROOT $make_args build" >> "$actual_out"
+    make -f Makefile -C "$ROOT" $make_args build >> "$actual_out" 2>&1
     if [ $? -ne 0 ]; then
         return $S_BUILD_FAILED
     fi
 
-    echo -e "\n  [RUN] Executing: timeout $TIMEOUT make -f makefile -C $ROOT $make_args justrun" >> "$actual_out"
+    echo -e "\n  [RUN] Executing: timeout $TIMEOUT make -f Makefile -C $ROOT $make_args justrun" >> "$actual_out"
     TIMEFORMAT='%3Rs'
-    RUN_TIME=$( { time timeout --foreground $TIMEOUT make -f makefile -C "$ROOT" $make_args justrun >> "$actual_out" 2>&1; } 2>&1 )
+    RUN_TIME=$( { time timeout --foreground $TIMEOUT make -f Makefile -C "$ROOT" $make_args justrun >> "$actual_out" 2>&1; } 2>&1 )
     local res=$?
 
     if [ $res -eq 124 ]; then
@@ -108,7 +108,7 @@ for t in "${test_list[@]}"; do
     APP_DIR="$ROOT/apps/$t"
 
     echo -e "\n${CYAN_C}Preparing user apps for${END_C} ${BLOD_C}$t${END_C}..."
-    make -f makefile user_apps BUILD_SCENARIO=test AX_TESTCASE=$t
+    make -f Makefile user_apps BUILD_SCENARIO=test AX_TESTCASE=$t
     if [ $? -ne 0 ]; then
         echo -e "${RED_C}Failed to build user apps for $t. Aborting.${END_C}"
         exit $S_BUILD_FAILED

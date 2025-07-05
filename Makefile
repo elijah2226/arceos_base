@@ -3,8 +3,13 @@
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Part 1: High-Level Configuration & Mode Selection
+# Part 1: High-Level Configuration & Mode Selection (高层配置与模式选择)
 # ------------------------------------------------------------------------------
+ARCH ?= x86_64
+LOG  ?= info
+SMP  ?= 1
+BUS  ?= pci
+MEM  ?= 128M
 # BUILD_SCENARIO can be 'normal' (default) or 'test'
 BUILD_SCENARIO ?= normal
 
@@ -15,13 +20,7 @@ else
     MODE ?= release
 endif
 
-ARCH ?= x86_64
-LOG  ?= info
-SMP  ?= 1
-BUS  ?= pci
-MEM  ?= 128M
-
-# --- Test-Mode Specific Settings ---
+# --- Test-Mode Specific Settings --- (测试模式专属设置)
 ifeq ($(BUILD_SCENARIO), test)
     AX_TESTCASE ?= nimbos
     AX_TESTCASES_LIST := $(shell cat ./apps/$(AX_TESTCASE)/testcase_list 2>/dev/null | tr '\n' ',')
