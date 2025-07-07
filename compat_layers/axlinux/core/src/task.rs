@@ -33,6 +33,7 @@ use weak_map::WeakMap;
 use axlog::info;
 
 use crate::{futex::FutexTable, time::TimeStat};
+use crate::cred::Credentials;
 
 /// Create a new user task.
 pub fn new_user_task(
@@ -212,6 +213,9 @@ pub struct ProcessData {
 
     /// The futex table.
     pub futex_table: FutexTable,
+
+    /// Process user and group credentials.
+	pub cred: Mutex<Credentials>,
 }
 
 impl ProcessData {
@@ -238,6 +242,47 @@ impl ProcessData {
             )),
 
             futex_table: FutexTable::new(),
+
+            // 添加 cred 字段的初始化
+		    cred: Mutex::new(Credentials::default()),
+        }
+    }
+
+    /// Creates a new ProcessData for a child process by forking from a parent.
+    /// This method handles the logic of inheriting vs. re-initializing fields.
+    pub fn fork_from(
+        parent: &Self,
+        aspace: Arc<Mutex<AddrSpace>>,
+        signal_actions: Arc<Mutex<SignalActions>>,
+        exit_signal: Option<Signo>,
+    ) -> Self {
+        Self {
+            // 继承可执行文件路径
+            exe_path: RwLock::new(parent.exe_path.read().clone()),
+            
+            aspace,
+
+            ns:  AxNamespace::new_thread_local(),
+
+            // 继承父进程的堆区范围
+            // 注意：这些是私有字段，但在此方法内可以访问
+            heap_bottom: AtomicUsize::new(parent.heap_bottom.load(Ordering::Relaxed)),
+            heap_top: AtomicUsize::new(parent.heap_top.load(Ordering::Relaxed)),
+
+            child_exit_wq: WaitQueue::new(),
+            exit_signal,
+            
+            // 构造子进程的信号处理结构
+            signal: Arc::new(ProcessSignalManager::new(
+                signal_actions,
+                axconfig::plat::SIGNAL_TRAMPOLINE,
+            )),
+
+            // 子进程有自己独立的 Futex 表
+            futex_table: FutexTable::new(), // 假设 FutexTable 实现了 Default    
+            
+            // 【核心修改】克隆父进程的用户凭证
+            cred: Mutex::new(parent.cred.lock().clone()),
         }
     }
 

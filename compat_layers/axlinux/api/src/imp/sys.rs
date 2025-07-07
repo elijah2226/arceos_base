@@ -4,21 +4,40 @@ use axerrno::LinuxResult;
 use linux_raw_sys::system::new_utsname;
 
 use crate::ptr::UserPtr;
+use axtask::current;
+use axtask::TaskExtRef;
 
 pub fn sys_getuid() -> LinuxResult<isize> {
-    Ok(0)
+     // 1. 获取当前任务
+    let task = current();
+    // 2. 通过 TaskExt 访问其所属进程的数据
+    let cred = task.task_ext().process_data().cred.lock();
+    // 3. 返回真实的 UID
+    Ok(cred.uid as isize)
 }
 
 pub fn sys_geteuid() -> LinuxResult<isize> {
-    Ok(1)
+
+    let task = current();
+    let cred = task.task_ext().process_data().cred.lock();
+    // 返回有效的 UID
+    Ok(cred.euid as isize)
 }
 
 pub fn sys_getgid() -> LinuxResult<isize> {
-    Ok(0)
+
+    let task = current();
+    let cred = task.task_ext().process_data().cred.lock();
+    // 返回有效的 UID
+    Ok(cred.euid as isize)
 }
 
 pub fn sys_getegid() -> LinuxResult<isize> {
-    Ok(1)
+
+    let task = current();
+    let cred = task.task_ext().process_data().cred.lock();
+    // 返回有效的 GID
+    Ok(cred.egid as isize)
 }
 
 const fn pad_str(info: &str) -> [c_char; 65] {

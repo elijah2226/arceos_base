@@ -168,11 +168,18 @@ pub fn sys_clone(
         } else {
             Arc::default()
         };
-        let process_data = ProcessData::new(
-            curr.task_ext().process_data().exe_path.read().clone(),
-            aspace,
-            signal_actions,
-            exit_signal,
+
+         // 1. 从 parent 对象中安全地获取父进程的 ProcessData
+        let parent_data = parent
+            .data::<ProcessData>()
+            .ok_or(LinuxError::EPERM)?; // 如果获取失败，说明有问题，返回权限错误
+
+        // 2. 调用我们新创建的 fork_from 构造函数
+        let process_data = ProcessData::fork_from(
+            parent_data,
+            aspace, // a. 传递为子进程准备好的地址空间
+            signal_actions, // b. 传递为子进程准备好的信号处理器
+            exit_signal, // c. 传递子进程的退出信号
         );
 
         if flags.contains(CloneFlags::FILES) {
