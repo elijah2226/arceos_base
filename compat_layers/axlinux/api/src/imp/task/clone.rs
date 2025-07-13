@@ -14,6 +14,7 @@ use starry_core::{
 };
 
 use crate::{file::FD_TABLE, ptr::UserPtr};
+use axtask::WaitQueue;
 
 bitflags! {
     /// Options for use with [`sys_clone`].
@@ -127,6 +128,16 @@ pub fn sys_clone(
         *UserPtr::<Pid>::from(parent_tid).get_as_mut()? = tid;
     }
 
+    // --- 新增 vfork 处理逻辑 ---
+    // 1. 如果是 vfork，创建一个完成端口
+    let vfork_wait_queue = if flags.contains(CloneFlags::VFORK) {
+        // 创建一个新的等待队列
+        Some(Arc::new(WaitQueue::new()))
+    } else {
+        None
+    };
+    // --- 新增结束 ---
+
     let process = if flags.contains(CloneFlags::THREAD) {
         new_task.ctx_mut().set_page_table_root(
             curr.task_ext()
@@ -182,6 +193,11 @@ pub fn sys_clone(
             exit_signal, // c. 传递子进程的退出信号
         );
 
+        // 如果是 vfork，将完成端口的另一半存入子进程的 ProcessData
+        if let Some(wq) = &vfork_wait_queue {
+            *process_data.vfork_completion.lock() = Some(wq.clone());
+        }
+
         if flags.contains(CloneFlags::FILES) {
             FD_TABLE
                 .deref_from(&process_data.ns)
@@ -219,10 +235,29 @@ pub fn sys_clone(
     add_thread_to_table(&thread);
     new_task.init_task_ext(TaskExt::new(thread));
     axtask::spawn_task(new_task);
+    // --- 新增 vfork 父进程等待逻辑 ---
+    // 6. 如果是 vfork，父进程在此等待
+    if let Some(wq) = vfork_wait_queue {
+        info!("vfork: parent {:?} is waiting for child...", curr.id());
+        wq.wait();
+        info!("vfork: parent {:?} is woken up.", curr.id());
+    }
+    // --- 新增结束 ---
 
     Ok(tid as _)
 }
 
 pub fn sys_fork(tf: &TrapFrame) -> LinuxResult<isize> {
     sys_clone(tf, SIGCHLD, 0, 0, 0, 0)
+}
+
+/// sys_vfork is equivalent to clone(CLONE_VFORK | CLONE_VM | SIGCHLD, 0, ...);
+pub fn sys_vfork(tf: &TrapFrame) -> LinuxResult<isize> {
+    // CLONE_VM 意味着共享地址空间
+    // CLONE_VFORK 是 vfork 的特殊标志
+    // SIGCHLD 是子进程退出时发送给父进程的信号
+    const VFORK_FLAGS: u32 = CLONE_VFORK | CLONE_VM | SIGCHLD;
+    
+    // 直接调用 sys_clone，传递 vfork 特定的标志位
+    sys_clone(tf, VFORK_FLAGS, 0, 0, 0, 0)
 }

@@ -216,6 +216,10 @@ pub struct ProcessData {
 
     /// Process user and group credentials.
 	pub cred: Mutex<Credentials>,
+
+    /// For vfork: Completion port to signal the parent process.
+    /// `Some` if this is a vfork-child, `None` otherwise.
+    pub vfork_completion: Mutex<Option<Arc<WaitQueue>>>,
 }
 
 impl ProcessData {
@@ -245,6 +249,8 @@ impl ProcessData {
 
             // 添加 cred 字段的初始化
 		    cred: Mutex::new(Credentials::default()),
+
+            vfork_completion: Mutex::new(None), // 默认不是 vfork 子进程
         }
     }
 
@@ -283,6 +289,8 @@ impl ProcessData {
             
             // 【核心修改】克隆父进程的用户凭证
             cred: Mutex::new(parent.cred.lock().clone()),
+
+            vfork_completion: Mutex::new(None), // fork 出来的子进程也不是 vfork 子进程
         }
     }
 
@@ -321,6 +329,19 @@ impl Drop for ProcessData {
             self.aspace
                 .lock()
                 .clear_mappings(VirtAddrRange::from_start_size(kernel.base(), kernel.size()));
+        }
+    }
+}
+
+/// Called when a process is about to be replaced by execve or exit.
+/// It checks if the process is a vfork child and wakes up its parent.
+pub fn signal_vfork_parent_if_needed(proc: &Process) {
+    if let Some(proc_data) = proc.data::<ProcessData>() {
+        // 获取锁，然后对 Option 调用 take()
+        if let Some(wq) = proc_data.vfork_completion.lock().take() {
+            info!("vfork: child {} is signaling parent.", proc.pid());
+            // 唤醒一个等待者（父进程）
+            wq.notify_one(false);
         }
     }
 }
