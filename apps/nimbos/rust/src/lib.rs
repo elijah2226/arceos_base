@@ -49,6 +49,10 @@ pub fn fork() -> isize {
     sys_fork()
 }
 
+pub fn vfork() -> isize {
+    sys_vfork()
+}
+
 pub fn exec(path: &str) -> isize {
     sys_exec(path)
 }

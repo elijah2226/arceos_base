@@ -11,6 +11,7 @@ cfg_if::cfg_if! {
         pub const SYSCALL_GETPID: usize = 39;
         pub const SYSCALL_CLONE: usize = 56;
         pub const SYSCALL_FORK: usize = 57;
+        pub const SYSCALL_VFORK: usize = 58;  
         pub const SYSCALL_EXEC: usize = 59;
         pub const SYSCALL_EXIT: usize = 60;
         pub const SYSCALL_WAITPID: usize = 61;
@@ -25,6 +26,7 @@ cfg_if::cfg_if! {
         #[allow(dead_code)]
         pub const SYSCALL_CLONE: usize = 220;
         pub const SYSCALL_FORK: usize = 220;
+        pub const SYSCALL_VFORK: usize = 221;
         pub const SYSCALL_EXEC: usize = 221;
         pub const SYSCALL_EXIT: usize = 93;
         pub const SYSCALL_WAITPID: usize = 260;
@@ -60,6 +62,10 @@ pub fn sys_getpid() -> isize {
 
 pub fn sys_fork() -> isize {
     syscall(SYSCALL_FORK, [0, 0, 0])
+}
+
+pub fn sys_vfork() -> isize {
+    syscall(SYSCALL_VFORK, [0, 0, 0])
 }
 
 pub fn sys_exec(path: &str) -> isize {
