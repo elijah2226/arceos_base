@@ -119,6 +119,12 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         // task sched
         Sysno::sched_yield => sys_sched_yield(),
         Sysno::nanosleep => sys_nanosleep(tf.arg0().into(), tf.arg1().into()),
+        Sysno::clock_nanosleep => sys_clock_nanosleep(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2().into(),
+            tf.arg3().into(),
+        ),
 
         // task ops
         Sysno::execve => sys_execve(tf, tf.arg0().into(), tf.arg1().into(), tf.arg2().into()),
@@ -200,6 +206,8 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::gettimeofday => sys_gettimeofday(tf.arg0().into()),
         Sysno::times => sys_times(tf.arg0().into()),
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
+        Sysno::clock_getres => sys_clock_getres(tf.arg0() as _, tf.arg1().into()),
+        Sysno::settimeofday => sys_settimeofday(tf.arg0().into(), tf.arg1().into()),
 
         _ => {
             warn!("Unimplemented syscall: {}", sysno);
