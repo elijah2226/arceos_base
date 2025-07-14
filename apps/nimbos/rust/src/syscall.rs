@@ -2,11 +2,13 @@ use super::time::{ClockId, TimeSpec};
 use crate::arch::syscall;
 
 pub use crate::arch::sys_clone;
+use crate::Stat;
 
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         pub const SYSCALL_READ: usize = 0;
         pub const SYSCALL_WRITE: usize = 1;
+        pub const SYSCALL_STAT: usize = 4; 
         pub const SYSCALL_YIELD: usize = 24;
         pub const SYSCALL_GETPID: usize = 39;
         pub const SYSCALL_CLONE: usize = 56;
@@ -17,6 +19,15 @@ cfg_if::cfg_if! {
         pub const SYSCALL_WAITPID: usize = 61;
         pub const SYSCALL_CLOCK_GETTIME: usize = 228;
         pub const SYSCALL_CLOCK_NANOSLEEP: usize = 230;
+        pub const SYSCALL_SYMLINK: usize = 88; 
+        pub const SYSCALL_READLINK: usize = 89; 
+        pub const SYSCALL_CHMOD: usize = 90;    
+        pub const SYSCALL_CHOWN: usize = 92; 
+        pub const SYSCALL_OPEN: usize = 2;    
+        pub const SYSCALL_CLOSE: usize = 3;   
+        pub const SYSCALL_UNLINK: usize = 87; 
+        pub const SYSCALL_RMDIR: usize = 84;     
+        pub const SYSCALL_FSTAT: usize = 5;   
     }
     else {
         pub const SYSCALL_READ: usize = 63;
@@ -90,4 +101,44 @@ pub fn sys_clock_nanosleep(clk: ClockId, flags: u32, req: &TimeSpec) -> isize {
         flags as _,
         req as *const _ as usize,
     ])
+}
+
+pub fn sys_symlink(target: &str, linkpath: &str) -> isize {
+    syscall(SYSCALL_SYMLINK, [target.as_ptr() as usize, linkpath.as_ptr() as usize, 0])
+}
+
+pub fn sys_readlink(path: &str, buf: &mut [u8]) -> isize {
+    syscall(SYSCALL_READLINK, [path.as_ptr() as usize, buf.as_ptr() as usize, buf.len()])
+}
+
+pub fn sys_chmod(path: &str, mode: u32) -> isize {
+    syscall(SYSCALL_CHMOD, [path.as_ptr() as usize, mode as usize, 0])
+}
+
+pub fn sys_chown(path: &str, uid: u32, gid: u32) -> isize {
+    syscall(SYSCALL_CHOWN, [path.as_ptr() as usize, uid as usize, gid as usize])
+}
+
+pub fn sys_open(path: &str, flags: u32) -> isize {
+    syscall(SYSCALL_OPEN, [path.as_ptr() as usize, flags as usize, 0])
+}
+
+pub fn sys_close(fd: usize) -> isize {
+    syscall(SYSCALL_CLOSE, [fd, 0, 0])
+}
+
+pub fn sys_unlink(path: &str) -> isize {
+    syscall(SYSCALL_UNLINK, [path.as_ptr() as usize, 0, 0])
+}
+
+pub fn sys_rmdir(path: &str) -> isize {
+    syscall(SYSCALL_RMDIR, [path.as_ptr() as usize, 0, 0])
+}
+
+pub fn sys_stat(path: &str, stat_buf: &mut Stat) -> isize {
+    syscall(SYSCALL_STAT, [path.as_ptr() as usize, stat_buf as *mut _ as usize, 0])
+}
+
+pub fn sys_fstat(fd: usize, stat_buf: &mut Stat) -> isize {
+    syscall(SYSCALL_FSTAT, [fd, stat_buf as *mut _ as usize, 0])
 }

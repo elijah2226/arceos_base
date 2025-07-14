@@ -10,6 +10,18 @@ mod syscall;
 mod time;
 
 pub use time::*;
+use bitflags::bitflags;
+
+bitflags! {
+    pub struct OpenFlags: u32 {
+        const RDONLY = 0o0000;
+        const WRONLY = 0o0001;
+        const RDWR = 0o0002;
+        const CREATE = 0o0100;
+        const TRUNC = 0o0200;
+        const EXCL = 0o0400;
+    }
+}
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.entry")]
@@ -77,4 +89,67 @@ pub fn thread_spawn(entry: fn(usize) -> i32, arg: usize) -> isize {
     let thread_id = THREAD_COUNT.fetch_add(1, Ordering::AcqRel);
     let newsp = unsafe { THREAD_STACKS[thread_id].as_ptr_range().end as usize };
     sys_clone(entry, arg, newsp)
+}
+
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+    syscall::sys_open(path, flags.bits())
+}
+
+pub fn close(fd: usize) -> isize {
+    syscall::sys_close(fd)
+}
+
+/// Removes a file. To remove a directory, use `rmdir`.
+pub fn unlink(path: &str) -> isize {
+    syscall::sys_unlink(path)
+}
+
+/// Removes an empty directory.
+pub fn rmdir(path: &str) -> isize {
+    syscall::sys_rmdir(path)
+}
+
+pub fn symlink(target: &str, linkpath: &str) -> isize {
+    syscall::sys_symlink(target, linkpath)
+}
+
+pub fn readlink(path: &str, buf: &mut [u8]) -> isize {
+    syscall::sys_readlink(path, buf)
+}
+
+pub fn chmod(path: &str, mode: u32) -> isize {
+    syscall::sys_chmod(path, mode)
+}
+
+pub fn chown(path: &str, uid: u32, gid: u32) -> isize {
+    syscall::sys_chown(path, uid, gid)
+}
+
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct Stat {
+    pub dev: u64,
+    pub ino: u64,
+    pub mode: u32,
+    pub nlink: u32,
+    pub uid: u32,
+    pub gid: u32,
+    pub rdev: u64,
+    pub size: u64,
+    pub blksize: u64,
+    pub blocks: u64,
+    // ... 其他字段
+}
+
+impl Stat {
+    pub fn new() -> Self {
+        Stat::default()
+    }
+}
+
+pub fn stat(path: &str, stat_buf: &mut Stat) -> isize {
+    syscall::sys_stat(path, stat_buf)
+}
+pub fn fstat(fd: usize, stat_buf: &mut Stat) -> isize {
+    syscall::sys_fstat(fd, stat_buf)
 }

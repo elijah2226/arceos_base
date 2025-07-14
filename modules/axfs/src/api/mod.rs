@@ -8,6 +8,7 @@ pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions};
 
 use alloc::{string::String, vec::Vec};
 use axio::{self as io, prelude::*};
+use axio::Result as IoResult;
 
 /// Returns an iterator over the entries within a directory.
 pub fn read_dir(path: &str) -> io::Result<ReadDir> {
@@ -91,4 +92,24 @@ pub fn rename(old: &str, new: &str) -> io::Result<()> {
 /// check whether absolute path exists.
 pub fn absolute_path_exists(path: &str) -> bool {
     crate::root::lookup(None, path).is_ok()
+}
+
+/// Creates a new symbolic link on the filesystem.
+pub fn create_symlink(target: &str, link_path: &str) -> IoResult<()> {
+    crate::root::create_symlink(None, link_path, target)
+}
+
+/// Reads the value of a symbolic link.
+pub fn read_link(path: &str) -> IoResult<String> {
+    crate::root::read_link(None, path)
+}
+
+/// Changes the permissions of a file or directory.
+pub fn set_permission(path: &str, perm: Permissions) -> IoResult<()> {
+    crate::root::set_permission(None, path, perm)
+}
+
+/// Changes the owner and group of a file or directory.
+pub fn set_owner(path: &str, uid: u32, gid: u32) -> IoResult<()> {
+    crate::root::set_owner(None, path, uid, gid)
 }
