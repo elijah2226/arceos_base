@@ -1,0 +1,27 @@
+# /starry/.arceos/modules/axuio/Cargo.toml
+[package]
+name = "axuio"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+# 我们几乎肯定需要这些基础模块
+axlog = { workspace = true }
+axconfig = { workspace = true }
+axsync = { workspace = true } # 用于锁和同步
+axhal = { workspace = true }   # 用于物理地址和中断处理
+axtask = { workspace = true }  # 用于任务等待和唤醒
+axmm = { workspace = true }    # 用于内存管理和 mmap
+axfs = { workspace = true }    # 用于设备文件节点
+axdriver = { workspace = true } # 用于设备模型
+axio = { workspace = true, optional = true }  # 用于 I/O traits 和 Result
+axerrno = { workspace = true, optional = true } # 用于错误码
+axfs_vfs = { version = "0.1", optional = true }
+
+# 其他可能用到的工具库
+alloc = { version = "1.0", package = "rustc-std-workspace-alloc", optional = true }
+lazy_static = { workspace = true }
+spin = { workspace = true }
+
+[features]
+default = ["axio", "axerrno", "axfs_vfs"] # 默认启用 axio 和 axerrno

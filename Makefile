@@ -46,11 +46,9 @@ EXTRA_CONFIG ?= $(PWD)/configs/Monolithic/$(ARCH).toml
 # 根据选择的场景决定内核特性
 # 使用一个临时变量来构建特性列表
 _FEATURES :=
-ifeq ($(BUILD_SCENARIO), test)
-    _FEATURES += linux_compat
-else
-    _FEATURES += linux_normal_mode
-endif
+
+_FEATURES += linux_compat
+
 _FEATURES += log-level-$(LOG)
 ifeq ($(ARCH), aarch64)
     _FEATURES += fp_simd
@@ -176,6 +174,7 @@ ifeq ($(BUILD_SCENARIO), test)
 	@echo "====== 正在为 TEST 场景构建用户应用 (测试用例: $(AX_TESTCASE)) ======"
 	@$(MAKE) -C ./apps/$(AX_TESTCASE) ARCH=$(ARCH) build
 	@echo "====== 正在为测试用例创建磁盘镜像... ======"
+	# 注意这里的脚本调用，它会格式化磁盘
 	@./scripts/test/build_img.sh -a $(ARCH) -file ./apps/$(AX_TESTCASE)/build/$(ARCH) -s 20
 	@echo "====== 正在将 disk.img 重命名为 $(DISK_IMG) ======"
 	@mv disk.img $(DISK_IMG)
@@ -184,6 +183,8 @@ else
 	@if [ ! -f "$(DISK_IMG)" ]; then \
 		echo "创建空磁盘镜像: $(DISK_IMG)"; \
 		qemu-img create -f raw $(DISK_IMG) 20M; \
+		echo "格式化磁盘镜像为 FAT32: $(DISK_IMG)"; \
+		mkfs.fat $(DISK_IMG); \
 	fi
 endif
 
