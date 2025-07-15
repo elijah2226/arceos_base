@@ -17,5 +17,18 @@ path = "src/main.rs"
 axruntime = { workspace = true } # 必须直接依赖，以获取 panic_handler
 axlinux = { workspace = true }
 axstd = { workspace = true }
-axfeat = { workspace = true }
+# axfeat = { path = "../api/axfeat" } # <-- 确认路径正确
+axfeat = { workspace = true } # <-- 确认路径正确
 axns = { workspace = true } # <--- 加入这一行
+
+[features]
+# 我们自己定义的 "always_on" 实验特性可以保留或删掉
+default = ["always_on"]
+always_on = []
+
+# --- 关键的代理特性定义 ---
+# 定义 arceos-main 自己的特性，并告诉 Cargo，
+# 当这些特性被激活时，去激活 axfeat 依赖的同名特性。
+"linux_compat" = ["axfeat/linux_compat"]
+"fp_simd" = ["axfeat/fp_simd"]
+"linux_normal_mode" = ["axfeat/linux_normal_mode"]

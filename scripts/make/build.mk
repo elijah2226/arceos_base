@@ -42,12 +42,27 @@ endif
 # Part 2: Corrected Build Targets
 # ==============================================================================
 # Phony target for the main cargo build step. It only runs `cargo build`.
+
+# 1. 把所有特性转换逻辑都放在这里，这是 make 的声明区
+#    使用 make 的 subst 函数进行字符串替换
+_FEATURES_FOR_ARCEOS_MAIN_TEST := $(subst axfeat/linux_compat,,$(AX_FEAT))
+#    使用 += 添加无前缀的特性
+_FEATURES_FOR_ARCEOS_MAIN_TEST += linux_compat
+
 .PHONY: _cargo_build
 _cargo_build: oldconfig
 	@printf "    $(GREEN_C)Building$(END_C) App: $(APP_NAME), Arch: $(ARCH), Platform: $(PLAT_NAME), App type: $(APP_TYPE)\n"
 ifeq ($(APP_TYPE), rust)
-	$(call cargo_build,$(APP),$(AX_FEAT) $(LIB_FEAT) $(APP_FEAT))
+	# 如果是编译 Rust 应用 (也就是 arceos-main)，我们执行测试逻辑
+	@echo "--- MAKE-LEVEL TEST INJECTION ENABLED ---"
+	@echo "Original AX_FEAT passed to this rule: $(AX_FEAT)"
+	@echo "Final (manipulated) features passed to cargo: $(_FEATURES_FOR_ARCEOS_MAIN_TEST) $(LIB_FEAT) $(APP_FEAT)"
+	@echo "---------------------------------------"
+	# 调用 cargo_build 宏，但传递的是我们特殊处理过的特性变量
+	$(call cargo_build,$(APP),$(_FEATURES_FOR_ARCEOS_MAIN_TEST) $(LIB_FEAT) $(APP_FEAT))
 else ifeq ($(APP_TYPE), c)
+	# 如果是编译 C 应用，保持原来的逻辑不变
+	@printf " Using features: $(AX_FEAT) $(LIB_FEAT) $(APP_FEAT)\n"
 	$(call cargo_build,ulib/axlibc,$(AX_FEAT) $(LIB_FEAT))
 endif
 
