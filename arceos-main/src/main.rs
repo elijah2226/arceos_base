@@ -12,18 +12,7 @@ extern crate axns;
 /// It must be named `main` and have the C ABI to be called by `axruntime`.
 #[unsafe(no_mangle)]
 pub extern "C" fn main() {
-    // --- 新增的实验代码 ---
-    #[cfg(feature = "always_on")]
-    {
-        // 如果这行日志被打印，说明 #[cfg] 是能正常工作的。
-        println!("[arceos-main] TEST PASSED: The 'always_on' feature is recognized!");
-    }
-    #[cfg(not(feature = "always_on"))]
-    {
-        // 如果这行日志被打印，说明 #[cfg] 彻底坏掉了。
-        println!("[arceos-main] TEST FAILED: The 'always_on' feature is NOT recognized!");
-    }
-    // --- 实验代码结束 ---
+    axuio::init();
 
     println!("[arceos-main] Application 'main' function started!");
     // ...

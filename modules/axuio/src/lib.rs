@@ -27,7 +27,7 @@ pub fn create_device_file(device_id: usize) -> AxResult {
     use file::UioDeviceFile;
 
     // 1. 使用我们刚刚公开的全局 DEVFS 实例
-    if let Some(devfs_instance) = axfs::DEVFS.get() {
+    if let Some(devfs_instance) = axfs::DEVFS::get() {
         let uio_node = Arc::new(UioDeviceFile::new(device_id)?);
 
         let device_name = match device_id {
