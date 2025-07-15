@@ -31,6 +31,7 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         #[cfg(target_arch = "x86_64")]
         Sysno::unlink => sys_unlink(tf.arg0().into()),
         Sysno::getcwd => sys_getcwd(tf.arg0().into(), tf.arg1() as _),
+        Sysno::rmdir => sys_rmdir(tf.arg0().into()),
 
         // fd ops
         Sysno::openat => sys_openat(
@@ -143,6 +144,7 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         ),
         #[cfg(target_arch = "x86_64")]
         Sysno::fork => sys_fork(tf),
+        Sysno::vfork => sys_vfork(tf),
         Sysno::exit => sys_exit(tf.arg0() as _),
         Sysno::exit_group => sys_exit_group(tf.arg0() as _),
         Sysno::wait4 => sys_waitpid(tf.arg0() as _, tf.arg1().into(), tf.arg2() as _),
@@ -208,6 +210,12 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
         Sysno::clock_getres => sys_clock_getres(tf.arg0() as _, tf.arg1().into()),
         Sysno::settimeofday => sys_settimeofday(tf.arg0().into(), tf.arg1().into()),
+
+        // fs ctl
+        Sysno::symlink => sys_symlink(tf.arg0().into(), tf.arg1().into()),
+        Sysno::readlink => sys_readlink(tf.arg0().into(), tf.arg1().into(), tf.arg2() as _),
+        Sysno::chmod => sys_chmod(tf.arg0().into(), tf.arg1() as _),
+        Sysno::chown => sys_chown(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
 
         _ => {
             warn!("Unimplemented syscall: {}", sysno);

@@ -10,9 +10,12 @@ use axsync::Mutex;
 use lazyinit::LazyInit;
 use spin::RwLock;
 
+use crate::fs::lwext4_rust::FileWrapper ; 
+
 use crate::{
     api::FileType,
     fs::{self},
+    fops::FilePerm,
     mounts,
 };
 
@@ -335,4 +338,68 @@ pub(crate) fn rename(old: &str, new: &str) -> AxResult {
         remove_file(None, new)?;
     }
     parent_node_of(None, old).rename(old, new)
+}
+
+/// Helper to find parent directory and the final component of a path.
+fn lookup_parent<'a>(dir: Option<&VfsNodeRef>, path: &'a str) -> AxResult<(VfsNodeRef, &'a str)> {
+    let path_trimmed = path.trim_end_matches('/');
+    if path_trimmed.is_empty() {
+        return ax_err!(InvalidInput, "cannot get parent of root");
+    }
+    
+    match path_trimmed.rfind('/') {
+        Some(last_slash_pos) => {
+            let parent_path = &path_trimmed[..last_slash_pos];
+            let file_name = &path_trimmed[last_slash_pos + 1..];
+            let parent_node = if parent_path.is_empty() {
+                lookup(dir, "/")? // parent is root
+            } else {
+                lookup(dir, parent_path)?
+            };
+            Ok((parent_node, file_name))
+        }
+        None => { // no slashes, e.g. "foo"
+            let parent_node = parent_node_of(dir, path_trimmed); // parent is dir or CWD
+            Ok((parent_node, path_trimmed))
+        }
+    }
+}
+
+
+pub(crate) fn create_symlink(dir: Option<&VfsNodeRef>, link_path: &str, target: &str) -> AxResult {
+    let (parent, link_name) = lookup_parent(dir, link_path)?;
+    if let Some(ext4_parent) = parent.as_any().downcast_ref::<FileWrapper>() {
+        ext4_parent.do_create_symlink(link_name, target)
+    } else {
+        ax_err!(Unsupported)
+    }
+}
+
+pub(crate) fn read_link(dir: Option<&VfsNodeRef>, path: &str) -> AxResult<String> {
+    let node = lookup(dir, path)?;
+    if let Some(ext4_node) = node.as_any().downcast_ref::<FileWrapper>() {
+        let mut buf = [0u8; 4096];
+        let len = ext4_node.do_read_link(&mut buf)?;
+        Ok(String::from_utf8(buf[..len].to_vec()).map_err(|_| AxError::InvalidData)?)
+    } else {
+        ax_err!(Unsupported)
+    }
+}
+
+pub(crate) fn set_permission(dir: Option<&VfsNodeRef>, path: &str, perm: FilePerm) -> AxResult {
+    let node = lookup(dir, path)?;
+    if let Some(ext4_node) = node.as_any().downcast_ref::<FileWrapper>() {
+        ext4_node.do_set_permission(perm)
+    } else {
+        ax_err!(Unsupported)
+    }
+}
+
+pub(crate) fn set_owner(dir: Option<&VfsNodeRef>, path: &str, uid: u32, gid: u32) -> AxResult {
+    let node = lookup(dir, path)?;
+    if let Some(ext4_node) = node.as_any().downcast_ref::<FileWrapper>() {
+        ext4_node.do_set_owner(uid, gid)
+    } else {
+        ax_err!(Unsupported)
+    }
 }

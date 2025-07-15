@@ -8,6 +8,7 @@ use lwext4_rust::bindings::{
     O_CREAT, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY, SEEK_CUR, SEEK_END, SEEK_SET,
 };
 use lwext4_rust::{Ext4BlockWrapper, Ext4File, InodeTypes, KernelDevOp};
+use alloc::string::ToString;
 
 use crate::dev::Disk;
 pub const BLOCK_SIZE: usize = 512;
@@ -91,6 +92,26 @@ impl FileWrapper {
         info!("dealt with full path: {}", fpath.as_str());
         fpath
     }
+
+     pub fn do_create_symlink(&self, name: &str, target: &str) -> VfsResult {
+        let fpath = self.path_deal_with(name);
+        self.0.lock().file_symlink(target, &fpath).map_err(|e| e.try_into().unwrap())
+    }
+    
+    pub fn do_read_link(&self, buf: &mut [u8]) -> VfsResult<usize> {
+        let path = self.0.lock().get_path().to_str().unwrap().to_string();
+        self.0.lock().file_readlink(&path, buf).map_err(|e| e.try_into().unwrap())
+    }
+
+    pub fn do_set_permission(&self, perm: VfsNodePerm) -> VfsResult {
+        self.0.lock().file_mode_set(perm.bits() as u32).map(|_|()).map_err(|e| e.try_into().unwrap())
+    }
+
+    pub fn do_set_owner(&self, uid: u32, gid: u32) -> VfsResult {
+        let path = self.0.lock().get_path().to_str().unwrap().to_string();
+        self.0.lock().file_chown(&path, uid, gid).map_err(|e| e.try_into().unwrap())
+    }
+
 }
 
 /// The [`VfsNodeOps`] trait provides operations on a file or a directory.
@@ -173,6 +194,16 @@ impl VfsNodeOps for FileWrapper {
                     .map(|_v| ())
                     .map_err(|e| e.try_into().unwrap())
             }
+            // let mode = match ty {
+            //     VfsNodeType::Dir => 0o755, // rwxr-xr-x
+            //     VfsNodeType::SymLink => 0o777, // rwxrwxrwx
+            //     _ => 0o644, // rw-r--r-- for files and others
+            // };
+
+            // info!("Calling mknod for path: '{}', type: {:?}, mode: {:#o}", fpath, types, mode);
+            // file.mknod(fpath, types, mode)
+            //     .map(|_| ()) // mknod 成功后返回 Ok(())
+            //     .map_err(|e| e.try_into().unwrap())
         }
     }
 

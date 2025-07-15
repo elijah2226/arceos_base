@@ -7,6 +7,7 @@ use axtask::{TaskExtRef, current};
 use starry_core::mm::{load_user_app, map_trampoline};
 
 use crate::ptr::UserConstPtr;
+use starry_core::task::signal_vfork_parent_if_needed; // 添加导入
 
 pub fn sys_execve(
     tf: &mut TrapFrame,
@@ -40,6 +41,12 @@ pub fn sys_execve(
         error!("sys_execve: multi-thread not supported");
         return Err(LinuxError::EAGAIN);
     }
+
+    // 获取当前进程的 Arc<Process> 克隆
+    let curr_proc = curr_ext.thread.process().clone();
+    
+    // 在替换地址空间之前，通知可能正在等待的 vfork 父进程
+    signal_vfork_parent_if_needed(&curr_proc);
 
     let mut aspace = curr_ext.process_data().aspace.lock();
     aspace.unmap_user_areas()?;

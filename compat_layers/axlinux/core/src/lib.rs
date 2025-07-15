@@ -2,7 +2,7 @@
 //! programs and managing processes.
 
 #![no_std]
-#![warn(missing_docs)]
+// #![warn(missing_docs)]
 
 #[macro_use]
 extern crate axlog;
@@ -11,4 +11,5 @@ extern crate alloc;
 pub mod futex;
 pub mod mm;
 pub mod task;
+pub mod cred;
 mod time;

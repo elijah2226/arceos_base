@@ -3,6 +3,7 @@ use axsignal::{SignalInfo, Signo};
 use axtask::{TaskExtRef, current};
 use linux_raw_sys::general::SI_KERNEL;
 use starry_core::task::ProcessData;
+use starry_core::task::signal_vfork_parent_if_needed; // 添加导入
 
 use crate::{
     file::FD_TABLE,
@@ -15,7 +16,12 @@ pub fn do_exit(exit_code: i32, group_exit: bool) -> ! {
     let curr_ext = curr.task_ext();
 
     let thread = &curr_ext.thread;
+    let process = thread.process();
     info!("{:?} exit with code: {}", thread, exit_code);
+
+    // 在执行任何清理或退出逻辑之前，检查并唤醒 vfork 父进程
+    // 我们需要传递一个 Process 对象的引用，而不是 Arc 的克隆，因为后续代码也需要用它
+    signal_vfork_parent_if_needed(process);
 
     let clear_child_tid = UserPtr::<Pid>::from(curr_ext.thread_data().clear_child_tid());
     if let Ok(clear_tid) = clear_child_tid.get_as_mut() {
@@ -31,7 +37,6 @@ pub fn do_exit(exit_code: i32, group_exit: bool) -> ! {
         axtask::yield_now();
     }
 
-    let process = thread.process();
     if thread.exit(exit_code) {
         process.exit();
         if let Some(parent) = process.parent() {

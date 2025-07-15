@@ -17,6 +17,8 @@ use crate::{
     ptr::{UserConstPtr, UserPtr, nullable},
 };
 
+use axfs::fops::FilePerm;
+
 /// The ioctl() system call manipulates the underlying device parameters
 /// of special files.
 ///
@@ -53,6 +55,10 @@ pub fn sys_mkdirat(dirfd: i32, path: UserConstPtr<c_char>, mode: u32) -> LinuxRe
     axfs::api::create_dir(path.as_str())?;
 
     Ok(0)
+}
+
+pub fn sys_rmdir(path: UserConstPtr<c_char>) -> LinuxResult<isize> {
+    sys_unlinkat(AT_FDCWD, path, AT_REMOVEDIR)
 }
 
 #[allow(dead_code)]
@@ -257,4 +263,39 @@ pub fn sys_getcwd(buf: UserPtr<u8>, size: usize) -> LinuxResult<isize> {
     } else {
         Err(LinuxError::ERANGE)
     }
+}
+
+// Symlink
+pub fn sys_symlink(target: UserConstPtr<c_char>, linkpath: UserConstPtr<c_char>) -> LinuxResult<isize> {
+    let target_str = target.get_as_str()?;
+    let linkpath_str = linkpath.get_as_str()?;
+    axfs::api::create_symlink(target_str, linkpath_str)?;
+    Ok(0)
+}
+
+// Readlink
+pub fn sys_readlink(path: UserConstPtr<c_char>, buf: UserPtr<u8>, bufsiz: usize) -> LinuxResult<isize> {
+    let user_buf = buf.get_as_mut_slice(bufsiz)?;
+    let path_str = path.get_as_str()?;
+    let target_path = axfs::api::read_link(path_str)?;
+    let target_bytes = target_path.as_bytes();
+    let copy_len = user_buf.len().min(target_bytes.len());
+    user_buf[..copy_len].copy_from_slice(&target_bytes[..copy_len]);
+    Ok(copy_len as isize)
+}
+
+// Chmod
+pub fn sys_chmod(path: UserConstPtr<c_char>, mode: u32) -> LinuxResult<isize> {
+    let path_str = path.get_as_str()?;
+    // FilePerm 包含了权限位，直接使用它
+    let perm = FilePerm::from_bits_truncate(mode as u16);
+    axfs::api::set_permission(path_str, perm)?;
+    Ok(0)
+}
+
+// Chown
+pub fn sys_chown(path: UserConstPtr<c_char>, owner: u32, group: u32) -> LinuxResult<isize> {
+    let path_str = path.get_as_str()?;
+    axfs::api::set_owner(path_str, owner, group)?;
+    Ok(0)
 }
