@@ -279,6 +279,11 @@ impl File {
     pub fn get_attr(&self) -> AxResult<FileAttr> {
         self.access_node(Cap::empty())?.get_attr()
     }
+
+    // /// Flushes the file data, writes all buffered data to the underlying device.
+    // pub fn flush_data(&self) -> AxResult {
+    //     self.access_node(Cap::WRITE)?.fdatasync()
+    // }
 }
 
 impl Directory {

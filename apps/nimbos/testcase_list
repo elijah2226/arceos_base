@@ -4,3 +4,5 @@ hello_c
 yield
 sleep_simple
 sleep_c
+fs_advanced_test
+vforktest

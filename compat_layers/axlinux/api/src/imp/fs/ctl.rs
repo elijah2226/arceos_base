@@ -7,7 +7,8 @@ use alloc::ffi::CString;
 use axerrno::{LinuxError, LinuxResult};
 use axfs::fops::DirEntry;
 use linux_raw_sys::general::{
-    AT_FDCWD, AT_REMOVEDIR, DT_BLK, DT_CHR, DT_DIR, DT_FIFO, DT_LNK, DT_REG, DT_SOCK, DT_UNKNOWN,
+    AT_FDCWD, AT_REMOVEDIR, DT_BLK, DT_CHR, DT_DIR, 
+    DT_FIFO, DT_LNK, DT_REG, DT_SOCK, DT_UNKNOWN, 
     linux_dirent64,
 };
 
@@ -18,6 +19,11 @@ use crate::{
 };
 
 use axfs::fops::FilePerm;
+use axfs::fops::FileType as AxFileType;
+use linux_raw_sys::general::{
+        S_IFMT, S_IFREG, S_IFDIR, S_IFLNK, S_IFIFO, S_IFCHR, S_IFBLK
+    };
+// use axtask::{TaskExtRef, current};
 
 /// The ioctl() system call manipulates the underlying device parameters
 /// of special files.
@@ -297,5 +303,36 @@ pub fn sys_chmod(path: UserConstPtr<c_char>, mode: u32) -> LinuxResult<isize> {
 pub fn sys_chown(path: UserConstPtr<c_char>, owner: u32, group: u32) -> LinuxResult<isize> {
     let path_str = path.get_as_str()?;
     axfs::api::set_owner(path_str, owner, group)?;
+    Ok(0)
+}
+
+
+pub fn sys_faccessat(dirfd: c_int, path: UserConstPtr<c_char>, mode: u32, _flags: u32) -> LinuxResult<isize> {
+    // TODO: 处理 AT_EACCESS flag，它要求使用有效ID(euid, egid)而不是真实ID来检查
+    let path = handle_file_path(dirfd, path.get_as_str()?)?;
+    axfs::api::access(path.as_str(), mode)?;
+    Ok(0)
+}
+
+pub fn sys_access(path: UserConstPtr<c_char>, mode: u32) -> LinuxResult<isize> {
+    sys_faccessat(AT_FDCWD, path, mode, 0)
+}
+
+pub fn sys_mknodat(dirfd: c_int, path: UserConstPtr<c_char>, mode: u32, _dev: u64) -> LinuxResult<isize> {
+    // mode 的高位是文件类型，低位是权限
+    let file_type = match mode & S_IFMT {
+        S_IFREG => AxFileType::File,
+        S_IFDIR => AxFileType::Dir,
+        S_IFLNK => AxFileType::SymLink,
+        S_IFIFO => AxFileType::Fifo,
+        S_IFCHR => AxFileType::CharDevice,
+        S_IFBLK => AxFileType::BlockDevice,
+        _ => return Err(LinuxError::EINVAL),
+    };
+    let perm = FilePerm::from_bits_truncate(mode as u16);
+    
+    let path = handle_file_path(dirfd, path.get_as_str()?)?;
+    axfs::api::mknod(path.as_str(), file_type, perm)?;
+    // TODO: 对于设备文件，需要用 dev 来注册设备
     Ok(0)
 }

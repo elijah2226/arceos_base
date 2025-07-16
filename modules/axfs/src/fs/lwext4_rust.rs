@@ -12,6 +12,7 @@ use alloc::string::ToString;
 
 use crate::dev::Disk;
 pub const BLOCK_SIZE: usize = 512;
+use crate::ext::AxVfsNodeOpsExt;
 
 #[allow(dead_code)]
 pub struct Ext4FileSystem {
@@ -93,24 +94,7 @@ impl FileWrapper {
         fpath
     }
 
-     pub fn do_create_symlink(&self, name: &str, target: &str) -> VfsResult {
-        let fpath = self.path_deal_with(name);
-        self.0.lock().file_symlink(target, &fpath).map_err(|e| e.try_into().unwrap())
-    }
     
-    pub fn do_read_link(&self, buf: &mut [u8]) -> VfsResult<usize> {
-        let path = self.0.lock().get_path().to_str().unwrap().to_string();
-        self.0.lock().file_readlink(&path, buf).map_err(|e| e.try_into().unwrap())
-    }
-
-    pub fn do_set_permission(&self, perm: VfsNodePerm) -> VfsResult {
-        self.0.lock().file_mode_set(perm.bits() as u32).map(|_|()).map_err(|e| e.try_into().unwrap())
-    }
-
-    pub fn do_set_owner(&self, uid: u32, gid: u32) -> VfsResult {
-        let path = self.0.lock().get_path().to_str().unwrap().to_string();
-        self.0.lock().file_chown(&path, uid, gid).map_err(|e| e.try_into().unwrap())
-    }
 
 }
 
@@ -355,6 +339,20 @@ impl VfsNodeOps for FileWrapper {
     fn as_any(&self) -> &dyn core::any::Any {
         self as &dyn core::any::Any
     }
+
+
+ fn fsync(&self) -> VfsResult {
+
+        let mut file = self.0.lock();
+        let result: Result<usize, i32> = file.file_cache_flush();
+
+        match result {
+            Ok(_) => Ok(()), 
+            Err(e) => {     
+                Err(AxError::try_from(e).unwrap_or(AxError::Io))
+            }
+        }
+    }
 }
 
 impl Drop for FileWrapper {
@@ -431,5 +429,26 @@ impl KernelDevOp for Disk {
         }
         dev.set_position(new_pos as u64);
         Ok(new_pos)
+    }
+}
+
+impl AxVfsNodeOpsExt for FileWrapper {
+    fn create_symlink(&self, name: &str, target: &str) -> VfsResult {
+        let fpath = self.path_deal_with(name);
+        self.0.lock().file_symlink(target, &fpath).map_err(|e| e.try_into().unwrap())
+    }
+
+    fn read_link(&self) -> VfsResult<String> {
+        let path = self.0.lock().get_path().to_str().unwrap().to_string();
+        self.0.lock().file_readlink(&path).map_err(|e| e.try_into().unwrap())
+    }
+
+    fn set_permission(&self, perm: VfsNodePerm) -> VfsResult {
+        self.0.lock().file_mode_set(perm.bits() as u32).map(|_|()).map_err(|e| e.try_into().unwrap())
+    }
+
+    fn set_owner(&self, uid: u32, gid: u32) -> VfsResult {
+        let path = self.0.lock().get_path().to_str().unwrap().to_string();
+        self.0.lock().file_chown(&path, uid, gid).map_err(|e| e.try_into().unwrap())
     }
 }
