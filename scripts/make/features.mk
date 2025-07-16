@@ -38,7 +38,6 @@ endif
 # --- 1. 聚合所有特性到一个临时的、可能会被污染的列表 ---
 _all_features_raw :=
 _all_features_raw += $(FEATURES)
-_all_features_raw += log-level-$(LOG)
 ifeq ($(BUS), mmio)
     _all_features_raw += bus-mmio
 endif

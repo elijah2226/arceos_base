@@ -24,14 +24,14 @@ NO_AXSTD 	?= y
 
 # --- 场景化配置 (Scenario-driven Configuration) ---
 BUILD_SCENARIO ?= normal
-MODE := release
+MODE = release
 ifneq (,$(filter $(BUILD_SCENARIO),test debug))
-    MODE := debug
+    MODE = debug
 endif
 # --- 测试模式专属设置 ---
 ifeq ($(BUILD_SCENARIO), test)
-    AX_TESTCASE ?= nimbos
-    export AX_TESTCASES_LIST := $(shell cat ./apps/$(AX_TESTCASE)/testcase_list 2>/dev/null | tr '\n' ',')
+	AX_TESTCASE ?= nimbos
+	export AX_TESTCASES_LIST := $(shell cat ./apps/$(AX_TESTCASE)/testcase_list 2>/dev/null | tr '\n' ',')
 endif
 
 # ------------------------------------------------------------------------------
@@ -44,13 +44,14 @@ OUT_CONFIG 		:= $(CURDIR)/.axconfig.toml
 OUT_DIR 		?= $(APP)
 
 # --- 特性组装 (Feature Assembly) ---
-include scripts/make/features.mk
-APP_FEATURES 	?=
-AUTO_FEATURES := linux_compat log-level-$(LOG)
+APP_FEATURES	?=
+AUTO_FEATURES	:= linux_compat log-level-$(LOG)
 ifeq ($(ARCH), aarch64)
     AUTO_FEATURES += fp_simd
 endif
-override FEATURES := $(AUTO_FEATURES) $(FEATURES)
+_FEATURES_RAW := $(AUTO_FEATURES) $(FEATURES) $(APP_FEATURES)
+override FEATURES := $(sort $(_FEATURES_RAW))
+include scripts/make/features.mk
 
 # --- 目标架构与产物定义 (Target & Artifacts Setup) ---
 include scripts/make/platform.mk
@@ -105,31 +106,32 @@ include scripts/make/config.mk
 include scripts/make/build.mk
 include scripts/make/qemu.mk
 
-# ------------------------------------------------------------------------------
+# ==============================================================================
 # Part 4: 用户交互目标
-# ------------------------------------------------------------------------------
+# ==============================================================================
 
-all: build
+all: help
 
-build: user_apps $(FINAL_IMG)
+build: $(FINAL_IMG) user_apps
 
-run:
-	@echo "======> SCENARIO: Normal Run (Release Mode)"
-	@+$(MAKE) build BUILD_SCENARIO=normal $(filter-out $@,$(MAKECMDGOALS))
-	@+$(MAKE) justrun BUILD_SCENARIO=normal $(filter-out $@,$(MAKECMDGOALS))
+justrun: build
+	$(call run_qemu)
 
-test:
+.PHONY: debugrun
+debugrun: build
+	$(call run_qemu_debug)
+
+run: BUILD_SCENARIO := normal
+run: justrun
+
+debug: BUILD_SCENARIO := debug
+debug: debugrun
+
+test: BUILD_SCENARIO := test
+test: build
 	@echo "======> SCENARIO: Integration Test"
 	@echo "Test suite: $(or $(AX_TESTCASE),nimbos)"
 	@bash ./scripts/test/app_test.sh $(or $(AX_TESTCASE),nimbos)
-
-debug:
-	@echo "======> SCENARIO: Debug Session (Debug Mode)"
-	@+$(MAKE) build BUILD_SCENARIO=debug $(filter-out $@,$(MAKECMDGOALS))
-	$(call run_qemu_debug)
-
-justrun:
-	$(call run_qemu)
 
 disasm: build
 	$(OBJDUMP) $(OUT_ELF) | less
@@ -144,12 +146,13 @@ ifeq ($(BUILD_SCENARIO), test)
 	@mv disk.img $(DISK_IMG)
 else
 	@echo "====== Preparing user apps for NORMAL/DEBUG scenario"
-	@if [ ! -f "$(DISK_IMG)" ]; then \
-		echo "Disk image '$(DISK_IMG)' not found. Creating a new one."; \
+	# 使用 Make 的 wildcard 和 if 函数，如果 DISK_IMG 不存在，则执行创建命令
+	$(if $(wildcard $(DISK_IMG)),, \
+		@echo "Disk image '$(DISK_IMG)' not found. Creating a new one..."; \
 		qemu-img create -f raw $(DISK_IMG) 20M; \
 		echo "Formatting '$(DISK_IMG)' as FAT32."; \
 		mkfs.fat $(DISK_IMG); \
-	fi
+	)
 endif
 
 defconfig: _axconfig-gen
@@ -165,12 +168,10 @@ clean:
 	@rm -rf $(APP)/*.bin $(APP)/*.elf $(APP)/*.uimg $(OUT_CONFIG) *.img
 	@cargo clean
 	@echo "Cleaning all user app suites..."
-	@if [ -n "$(APP_CLEAN_DIRS)" ]; then \
-		for dir in $(APP_CLEAN_DIRS); do \
-			echo "===> Cleaning $$dir"; \
-			$(MAKE) -C $$dir clean; \
-		done \
-	fi
+	$(foreach dir,$(APP_CLEAN_DIRS), \
+		@echo "===> Cleaning $(dir)"; \
+		$(MAKE) -C $(dir) clean; \
+	)
 
 help:
 	@echo "ArceOS Unikernel Build System"
@@ -188,5 +189,5 @@ help:
 	@echo "Common Variables:"
 	@printf "  %-20s %s\n" "ARCH" "Target architecture (e.g., x86_64, aarch64). Default: $(ARCH)"
 	@printf "  %-20s %s\n" "NET" "Enable network (y/n). Default: $(NET)"
-	@printf "  %-20s %s\n" "AX_TESTCASE" "Specify test suite for 'make test'. Default: $(AX_TESTCASE)"
+	@printf "  %-20s %s\n" "AX_TESTCASE" "Specify test suite for 'make test'. Default: $(or $(AX_TESTCASE),nimbos)"
 	@printf "  %-20s %s\n" "V" "Verbose build (V=1 or V=2)."
