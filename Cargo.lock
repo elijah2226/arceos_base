@@ -132,6 +132,10 @@ name = "arceos-main"
 version = "0.1.0"
 dependencies = [
  "axfeat",
+ "axfs",
+ "axfs_devfs",
+ "axfs_ramfs",
+ "axfs_vfs",
  "axlinux",
  "axns",
  "axruntime",

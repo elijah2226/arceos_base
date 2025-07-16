@@ -13,7 +13,9 @@ pub(crate) fn devfs() -> Arc<fs::devfs::DeviceFileSystem> {
     devfs.add("null", Arc::new(null));
     devfs.add("zero", Arc::new(zero));
     foo_dir.add("bar", Arc::new(bar));
-    Arc::new(devfs)
+    let devfs_arc = Arc::new(devfs);
+    crate::set_devfs_instance(devfs_arc.clone());
+    devfs_arc
 }
 
 #[cfg(feature = "ramfs")]

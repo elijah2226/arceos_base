@@ -14,6 +14,8 @@ mod manager;
 pub use device::UioMemoryRegion;
 pub use manager::register_device;
 
+use alloc::string::ToString;
+use alloc::vec;
 use axerrno::{AxError, AxResult};
 
 /// UIO 模块的全局初始化函数
@@ -43,5 +45,28 @@ pub fn create_device_file(device_id: usize) -> AxResult {
         Ok(())
     } else {
         axerrno::ax_err!(NotFound, "DEVFS is not initialized or feature not enabled")
+    }
+}
+
+/// 注册一个虚拟的 UIO 设备用于测试。
+///
+/// 在真实的系统中，这个调用会来自具体的设备驱动程序，
+/// 比如 virtio-net 驱动在初始化时会调用 `register_device`。
+pub fn test_register_dummy_device() {
+    info!("Attempting to register a dummy UIO device for testing...");
+    // 模拟一个设备，它有 64KB 的内存区域和 virtio-pci 的中断号 11
+    // (在 QEMU aarch64 上，virtio-net 的中断号通常是 33，在 x86_64 上是 11)
+    let paddr = axhal::mem::PhysAddr::from(0x1000_0000); // 随便选一个未使用的物理地址
+    let size = 64 * 1024; // 64KB
+    let irq = 11; // virtio-pci IRQ on x86_64 QEMU
+
+    match register_device(
+        "dummy-virtio-net".to_string(),
+        "0.1.0".to_string(),
+        vec![device::UioMemoryRegion { paddr, size }],
+        Some(irq),
+    ) {
+        Ok(id) => info!("Dummy UIO device registered with ID: {}", id),
+        Err(e) => error!("Failed to register dummy UIO device: {:?}", e),
     }
 }

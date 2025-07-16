@@ -5,7 +5,7 @@ use super::manager;
 use alloc::sync::Arc;
 use axerrno::{AxError, AxResult}; // 新的错误处理
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeType};
-use axhal::mem::VirtAddr; // mmap 仍然需要
+use axhal::mem::{PhysAddr, VirtAddr}; // mmap 仍然需要
 use axio::{Read, Result, Seek, SeekFrom, Write};
 
 pub struct UioDeviceFile {
@@ -17,9 +17,47 @@ impl UioDeviceFile {
         let device = manager::get_device(device_id).ok_or(AxError::NotFound)?; // 使用 AxError
         Ok(Self { device })
     }
+    // --- 【【【新增：这是 mmap 的正确实现方式】】】 ---
+    /// 处理针对此 UIO 设备的内存映射请求。
+    ///
+    /// # 关于 VFS 集成的说明
+    ///
+    /// `axfs-vfs` 的 `VfsNodeOps` trait 没有 `mmap` 方法。
+    /// 一个真正的 `mmap` 系统调用处理程序需要：
+    /// 1. 根据文件描述符获取 `VfsNodeRef`。
+    /// 2. 使用 `node.as_any().downcast_ref::<UioDeviceFile>()` 来获取一个
+    ///    指向此结构体的具体引用。
+    /// 3. 如果向下转型成功，调用此 `handle_mmap` 方法来获取用于映射的物理地址。
+    ///
+    /// 此函数返回需要被映射的物理地址。VFS/MMU 子系统负责实际的页表操作。
+    pub fn handle_mmap(&self, offset: usize, length: usize) -> AxResult<axhal::mem::PhysAddr> {
+        // UIO 规范: offset 对应于第 N 个内存区域。
+        // offset = 0 -> mem[0], offset = PAGE_SIZE -> mem[1], 等等。
+        // --- 【【【修改：使用 axhal::mem::PAGE_SIZE】】】 ---
+        let page_size = axhal::mem::PAGE_SIZE_4K;
+        if offset % page_size != 0 {
+            return axerrno::ax_err!(InvalidInput, "mmap offset must be a multiple of PAGE_SIZE");
+        }
+        let mem_region_index = offset / page_size;
+
+        if let Some(mem_region) = self.device.mem_regions.get(mem_region_index) {
+            if length > mem_region.size {
+                return axerrno::ax_err!(
+                    InvalidInput,
+                    "mmap length exceeds the memory region size"
+                );
+            }
+            info!(
+                "UIO mmap: providing paddr {:#x} for region {}",
+                mem_region.paddr, mem_region_index
+            );
+            Ok(mem_region.paddr)
+        } else {
+            axerrno::ax_err!(NotFound, "Invalid UIO memory region index")
+        }
+    }
 }
 
-// --- 【【【修改：精确实现 VfsNodeOps】】】 ---
 impl VfsNodeOps for UioDeviceFile {
     // --- get_attr: 使用正确的构造函数 ---
     fn get_attr(&self) -> AxResult<VfsNodeAttr> {
@@ -75,7 +113,10 @@ impl VfsNodeOps for UioDeviceFile {
     fn write_at(&self, _offset: u64, _buf: &[u8]) -> AxResult<usize> {
         Err(AxError::Unsupported)
     }
-
     // --- 其他方法将使用 VfsNodeOps trait 中的默认实现 ---
     // --- 它们默认返回 ax_err!(Unsupported) 或类似错误，这对于文件节点是正确的 ---
+    // --- 【【【新增：必须实现 as_any 以支持向下转型】】】 ---
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
 }
