@@ -25,6 +25,9 @@ pub const NANOS_PER_MILLIS: u64 = 1_000_000;
 /// Number of nanoseconds in a microsecond.
 pub const NANOS_PER_MICROS: u64 = 1_000;
 
+/// Additional offset for wall time adjustments made during runtime
+static mut WALL_TIME_ADJUSTMENT_NANOS: i64 = 0;
+
 /// Returns nanoseconds elapsed since system boot.
 pub fn monotonic_time_nanos() -> u64 {
     ticks_to_nanos(current_ticks())
@@ -54,5 +57,19 @@ pub fn busy_wait(dur: Duration) {
 pub fn busy_wait_until(deadline: TimeValue) {
     while wall_time() < deadline {
         core::hint::spin_loop();
+    }
+}
+
+/// Set real-time clock to the given time value.
+pub fn set_wall_time(tv: TimeValue) {
+    let nanos = tv.as_nanos();
+    // Calculate the current wall time without adjustment
+    let current_base_time = monotonic_time_nanos() + epochoffset_nanos();
+    
+    // Calculate the adjustment needed to reach the target time
+    let adjustment = nanos as i64 - current_base_time as i64;
+    
+    unsafe {
+        WALL_TIME_ADJUSTMENT_NANOS = adjustment;
     }
 }
