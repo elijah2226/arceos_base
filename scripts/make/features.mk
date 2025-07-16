@@ -1,63 +1,85 @@
-# Features resolving.
+# ==============================================================================
+# Feature Resolver for ArceOS (Smart Partitioner Version)
+#
+# This script collects features, partitions them into "kernel-level" and
+# "top-level" groups, applies the correct prefixes, and assembles the final
+# feature string for Cargo.
 #
 # Inputs:
-#   - `FEATURES`: a list of features to be enabled split by spaces or commas.
-#     The features can be selected from the crate `axfeat` or the user library
-#     (crate `axstd` or `axlibc`).
-#   - `APP_FEATURES`: a list of features to be enabled for the Rust app.
+#   - FEATURES: Space/comma-separated list of features from the command line.
+#   - LOG, BUS, SMP, etc.: High-level config variables.
 #
 # Outputs:
-#   - `AX_FEAT`: features to be enabled for ArceOS modules (crate `axfeat`).
-#   - `LIB_FEAT`: features to be enabled for the user library (crate `axstd`, `axlibc`).
-#   - `APP_FEAT`: features to be enabled for the Rust app.
+#   - FINAL_FEATURES: A clean, comma-separated string of all enabled features
+#                     ready to be passed to `cargo build`.
+# ==============================================================================
 
-ifeq ($(APP_TYPE),c)
-  ax_feat_prefix := axfeat/
-  lib_features := fp_simd irq alloc multitask fs net fd pipe select epoll
+# ------------------------------------------------------------------------------
+# Part 1: 配置与清单定义
+# ------------------------------------------------------------------------------
+# --- 内核特性清单 ---
+_KERNEL_FEATURE_LIST := \
+    smp fp_simd irq alloc alloc-tlsf alloc-slab alloc-buddy page-alloc-64g \
+    page-alloc-4g paging dma tls multitask sched_fifo sched_rr sched_cfs fs \
+    myfs lwext4_rs net dns display rtc bus-mmio bus-pci driver-ramdisk \
+    driver-ixgbe driver-fxmac driver-bcm2835-sdhci log-level-off \
+    log-level-error log-level-warn log-level-info log-level-debug log-level-trace
+
+# --- 确定内核特性前缀 ---
+ifeq ($(NO_AXSTD), y)
+    _KERNEL_FEAT_PREFIX := axfeat/
 else
-  ifeq ($(NO_AXSTD),y)
-    ax_feat_prefix := axfeat/
-  else
-    ax_feat_prefix := axstd/
-  endif
-  lib_features :=
+    _KERNEL_FEAT_PREFIX := axstd/
 endif
 
-lib_feat_prefix := $(AX_LIB)/
-
-override FEATURES := $(shell echo $(FEATURES) | tr ',' ' ')
-
-ifeq ($(APP_TYPE), c)
-  ifneq ($(wildcard $(APP)/features.txt),)    # check features.txt exists
-    override FEATURES += $(shell cat $(APP)/features.txt)
-  endif
-  ifneq ($(filter fs net pipe select epoll,$(FEATURES)),)
-    override FEATURES += fd
-  endif
+# ------------------------------------------------------------------------------
+# Part 2: 特性聚合、分拣与组装 (The Original Way, Adapted)
+# ------------------------------------------------------------------------------
+# --- 1. 聚合所有特性到一个临时的、可能会被污染的列表 ---
+_all_features_raw :=
+_all_features_raw += $(FEATURES)
+_all_features_raw += log-level-$(LOG)
+ifeq ($(BUS), mmio)
+    _all_features_raw += bus-mmio
+endif
+ifneq ($(SMP), 1)
+ifneq ($(SMP), 0)
+    _all_features_raw += smp
+endif
 endif
 
-override FEATURES := $(strip $(FEATURES))
+# --- 2. 清理和规范化这个列表 ---
+_all_features_clean := $(strip $(shell echo $(_all_features_raw) | tr ',' ' '))
 
-ax_feat :=
-lib_feat :=
+# --- 3. 执行分拣 ---
+_kernel_features   := $(filter $(_KERNEL_FEATURE_LIST), $(_all_features_clean))
+_toplevel_features := $(filter-out $(_KERNEL_FEATURE_LIST), $(_all_features_clean))
 
-ifneq ($(filter $(LOG),off error warn info debug trace),)
-  ax_feat += log-level-$(LOG)
-else
-  $(error "LOG" must be one of "off", "error", "warn", "info", "debug", "trace")
-endif
+# --- 4. 组装带前缀的内核特性 ---
+_prefixed_kernel_features := $(addprefix $(_KERNEL_FEAT_PREFIX), $(_kernel_features))
 
-ifeq ($(BUS),mmio)
-  ax_feat += bus-mmio
-endif
+# --- 5. 合并所有特性到一个最终的、空格分隔的列表 ---
+_final_feature_list := $(_prefixed_kernel_features) $(_toplevel_features)
 
-ifeq ($(shell test $(SMP) -gt 1; echo $$?),0)
-  lib_feat += smp
-endif
+# --- 6. 最终格式化为 CSV ---
+FINAL_FEATURES := $(shell echo $(strip $(_final_feature_list)) | tr ' ' ',')
 
-ax_feat += $(filter-out $(lib_features),$(FEATURES))
-lib_feat += $(filter $(lib_features),$(FEATURES))
+# ------------------------------------------------------------------------------
+# Part 3: 调试与清理
+# ------------------------------------------------------------------------------
+# $(info --- DEBUG features.mk ---)
+# $(info All features collected (clean): [$(_all_features_clean)])
+# $(info Kernel Features to prefix: [$(_kernel_features)])
+# $(info Toplevel Features: [$(_toplevel_features)])
+# $(info Final feature string for Cargo: [$(FINAL_FEATURES)])
+# $(info -------------------------)
 
-AX_FEAT := $(strip $(addprefix $(ax_feat_prefix),$(ax_feat)))
-LIB_FEAT := $(strip $(addprefix $(lib_feat_prefix),$(lib_feat)))
-APP_FEAT := $(strip $(shell echo $(APP_FEATURES) | tr ',' ' '))
+# 清理临时变量
+_KERNEL_FEATURE_LIST  :=
+_KERNEL_FEAT_PREFIX   :=
+_all_features_raw     :=
+_all_features_clean   :=
+_kernel_features      :=
+_toplevel_features    :=
+_prefixed_kernel_features :=
+_final_feature_list   :=

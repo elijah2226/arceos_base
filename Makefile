@@ -20,6 +20,7 @@ IP 			?= 10.0.2.15
 GW 			?= 10.0.2.2
 PLATFORM 	?=
 V 			?=
+NO_AXSTD 	?= y
 
 # --- 场景化配置 (Scenario-driven Configuration) ---
 BUILD_SCENARIO ?= normal
@@ -44,7 +45,6 @@ OUT_DIR 		?= $(APP)
 
 # --- 特性组装 (Feature Assembly) ---
 include scripts/make/features.mk
-NO_AXSTD 		:= y
 APP_FEATURES 	?=
 AUTO_FEATURES := linux_compat log-level-$(LOG)
 ifeq ($(ARCH), aarch64)
@@ -67,8 +67,8 @@ LD_SCRIPT 	:= $(TARGET_DIR)/$(TARGET)/$(MODE)/linker_$(PLAT_NAME).lds
 OUT_ELF 	:= $(OUT_DIR)/$(APP_NAME)_$(PLAT_NAME).elf
 OUT_BIN 	:= $(patsubst %.elf,%.bin,$(OUT_ELF))
 OUT_UIMG 	:= $(patsubst %.elf,%.uimg,$(OUT_ELF))
-DISK_IMG ?= $(if $(filter test,$(BUILD_SCENARIO)),$(AX_TESTCASE)_disk.img,disk.img)
-UIMAGE ?= n
+DISK_IMG 	?= $(if $(filter test,$(BUILD_SCENARIO)),$(AX_TESTCASE)_disk.img,disk.img)
+UIMAGE 		?= n
 ifeq ($(UIMAGE), y)
   FINAL_IMG := $(OUT_UIMG)
 else

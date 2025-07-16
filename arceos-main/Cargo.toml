@@ -14,19 +14,15 @@ path = "src/main.rs"
 
 [dependencies]
 # 只保留应用层和特性总开关的依赖
-axruntime = { workspace = true }
 axlinux = { workspace = true }
 axstd = { workspace = true }
 axfeat = { workspace = true }
-axns = { workspace = true } 
 axuio = { workspace = true }
-axfs = {workspace = true}
+axns = { workspace = true }
 axfs_vfs = "0.1"
 axfs_devfs = { version = "0.1"}
-axfs_ramfs = { version = "0.1"}
 
 [features]
-
 # --- 关键的代理特性定义 ---
 # 定义 arceos-main 自己的特性，并告诉 Cargo，
 # 当这些特性被激活时，去激活 axfeat 依赖的同名特性。
