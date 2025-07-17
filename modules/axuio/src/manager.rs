@@ -11,7 +11,6 @@ use axsync::Mutex;
 use axtask::WaitQueue;
 use lazy_static::lazy_static;
 
-// --- 【【【修改：全局设备列表，现在也用于中断分发】】】 ---
 lazy_static! {
     static ref UIO_DEVICES: Mutex<Vec<Arc<UioDevice>>> = Mutex::new(Vec::new());
 }
@@ -29,7 +28,6 @@ lazy_static! {
 ///
 /// # 返回
 /// 成功时返回设备 ID，失败时返回错误。
-// --- 【【【修改：返回值类型，并调用 create_device_file】】】 ---
 pub fn register_device(
     name: String,
     version: String,
@@ -72,10 +70,8 @@ pub fn register_device(
         irq,
     });
     devices.push(device.clone());
-    // 释放锁，因为 create_device_file 可能需要获取其他锁
     drop(devices);
 
-    // --- 【【【新增】】】 注册成功后，创建对应的设备文件 ---
     create_device_file(id)?;
 
     Ok(id)

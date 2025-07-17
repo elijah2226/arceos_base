@@ -33,7 +33,6 @@ impl UioDeviceFile {
     pub fn handle_mmap(&self, offset: usize, length: usize) -> AxResult<axhal::mem::PhysAddr> {
         // UIO 规范: offset 对应于第 N 个内存区域。
         // offset = 0 -> mem[0], offset = PAGE_SIZE -> mem[1], 等等。
-        // --- 【【【修改：使用 axhal::mem::PAGE_SIZE】】】 ---
         let page_size = axhal::mem::PAGE_SIZE_4K;
         if offset % page_size != 0 {
             return axerrno::ax_err!(InvalidInput, "mmap offset must be a multiple of PAGE_SIZE");
@@ -75,7 +74,6 @@ impl VfsNodeOps for UioDeviceFile {
     fn read_at(&self, _offset: u64, buf: &mut [u8]) -> AxResult<usize> {
         if let Some(irq) = &self.device.irq {
             // 1. 检查计数器。如果计数器大于0，说明已经有中断发生了。
-            //    我们消费一个中断，然后立即返回。
             let mut count_lock = irq.count.lock();
             if *count_lock > 0 {
                 *count_lock -= 1;
@@ -91,12 +89,10 @@ impl VfsNodeOps for UioDeviceFile {
             // 如果计数器为0，释放锁并准备等待
             drop(count_lock);
 
-            // 2. 等待中断发生。
-            //    wait() 会阻塞当前任务，直到被 uio_irq_dispatcher 唤醒。
+            // 2. 等待中断发生。wait() 会阻塞当前任务，直到被 uio_irq_dispatcher 唤醒。
             irq.wait_queue.wait();
 
             // 3. 被唤醒后，我们知道一个中断刚刚发生并被处理了。
-            //    我们消费这个中断。
             *irq.count.lock() -= 1;
 
             // 4. 返回数据给用户。
@@ -115,7 +111,6 @@ impl VfsNodeOps for UioDeviceFile {
     }
     // --- 其他方法将使用 VfsNodeOps trait 中的默认实现 ---
     // --- 它们默认返回 ax_err!(Unsupported) 或类似错误，这对于文件节点是正确的 ---
-    // --- 【【【新增：必须实现 as_any 以支持向下转型】】】 ---
     fn as_any(&self) -> &dyn core::any::Any {
         self
     }

@@ -102,7 +102,6 @@ pub fn sys_mmap(
         let file_wrapper: Arc<File> = File::from_fd(fd)?;
         let axfs_file_guard = file_wrapper.inner(); // 这返回一个 MutexGuard<axfs::fops::File>
         // 尝试向下转型为 UioDeviceFile
-        // 如果你的 downcast_file 放在别处，请修改路径
         if let Some(uio_file) = axfs_file_guard
             .node()
             .as_any()
@@ -118,7 +117,7 @@ pub fn sys_mmap(
             }
             let paddr = uio_file.handle_mmap(offset as usize, length)?;
 
-            // 2. 寻找一块可用的虚拟地址空间 (这部分逻辑可以复用你下面的代码)
+            // 2. 寻找一块可用的虚拟地址空间
             let page_size = PageSize::Size4K; // UIO 通常用 4K 页
             let start_vaddr = if map_flags.contains(MmapFlags::FIXED) {
                 // ... (处理 FIXED 映射的逻辑，可以从下面拷贝) ...

@@ -7,7 +7,7 @@ CC := $(CROSS_COMPILE)gcc
 STRIP := $(CROSS_COMPILE)strip
 
 # CFLAGS: -static 表示静态链接，-O2 是优化等级
-CFLAGS := -static -O2 -Wall
+CFLAGS := -static -g -Wall
 LDFLAGS := -static
 
 TARGET := uio_test
@@ -27,7 +27,7 @@ build: $(BUILD_DIR)/$(TARGET)
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(LDFLAGS) -o $@ $^
-	@$(STRIP) $@
+# @$(STRIP) $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
