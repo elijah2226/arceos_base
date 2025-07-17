@@ -1,5 +1,5 @@
 //! [`std::fs`]-like high-level filesystem manipulation operations.
-
+#![allow(unused)]
 mod dir;
 mod file;
 
@@ -9,6 +9,14 @@ pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions};
 use alloc::{string::String, vec::Vec};
 use axio::{self as io, prelude::*};
 use axio::Result as IoResult;
+
+use axerrno::{ax_err, AxResult, AxError};
+use crate::dev::Disk;
+// 条件编译导入
+#[cfg(feature = "lwext4_rs")]
+use crate::fs::lwext4_rust::FileWrapper as Ext4FileWrapper;
+#[cfg(feature = "fatfs")]
+use crate::fs::fatfs::{FileWrapper as FatFileWrapper, DirWrapper as FatDirWrapper};
 
 /// Returns an iterator over the entries within a directory.
 pub fn read_dir(path: &str) -> io::Result<ReadDir> {
@@ -94,22 +102,104 @@ pub fn absolute_path_exists(path: &str) -> bool {
     crate::root::lookup(None, path).is_ok()
 }
 
+/// Checks the access permissions of a file or directory at the given path.
+pub fn access(path: &str, mode: u32) -> io::Result<()> {
+    crate::root::access(None, path, mode)
+}
+
+/// Creates a filesystem node (file, device, etc.) at the specified path.
+pub fn mknod(path: &str, ty: FileType, perm: Permissions) -> io::Result<()> {
+    let (parent, name) = crate::root::lookup_parent(None, path)?;
+    parent.create(name, ty)
+}
+
 /// Creates a new symbolic link on the filesystem.
 pub fn create_symlink(target: &str, link_path: &str) -> IoResult<()> {
-    crate::root::create_symlink(None, link_path, target)
+    let (parent, link_name) = crate::root::lookup_parent(None, link_path)?;
+    let any_node = parent.as_any();
+
+    #[cfg(feature = "lwext4_rs")]
+    if let Some(ext4_parent) = any_node.downcast_ref::<Ext4FileWrapper>() {
+        // ext4 支持，调用底层函数
+        return ext4_parent.0.lock().file_symlink(target, link_name)
+            .map_err(|e| e.try_into().unwrap_or_default());
+    }
+
+    #[cfg(feature = "fatfs")]
+    if any_node.is::<FatDirWrapper<'static, Disk>>() {
+        // fatfs 不支持，直接返回一个 io::Error
+        return Err(axio::Error::from(AxError::Unsupported));
+    }
+
+    Err(axio::Error::from(AxError::Unsupported))
 }
 
 /// Reads the value of a symbolic link.
 pub fn read_link(path: &str) -> IoResult<String> {
-    crate::root::read_link(None, path)
+    let node = crate::root::lookup(None, path)?;
+    let any_node = node.as_any();
+
+    #[cfg(feature = "lwext4_rs")]
+    if let Some(ext4_node) = any_node.downcast_ref::<Ext4FileWrapper>() {
+        let mut file = ext4_node.0.lock();
+        // 确保是符号链接类型
+        if file.get_type() != lwext4_rust::InodeTypes::EXT4_DE_SYMLINK {
+            return Err(ax_err!(InvalidInput, "Not a symbolic link").into());
+        }
+        let mut buf = [0u8; 4096];
+        let len = file.file_readlink(path, &mut buf)
+            .map_err(|e| e.try_into().unwrap_or_default())?;
+        return String::from_utf8(buf[..len].to_vec())
+            .map_err(|_| ax_err!(InvalidData, "Invalid UTF8 in symlink").into());
+    }
+    
+    #[cfg(feature = "fatfs")]
+    if any_node.is::<FatDirWrapper<'static, Disk>>() || any_node.is::<FatDirWrapper<'static, Disk>>() {
+        // fatfs 不支持，直接返回一个 io::Error
+        return Err(axio::Error::from(AxError::Unsupported));
+    }
+
+    Err(axio::Error::from(AxError::Unsupported))
 }
 
 /// Changes the permissions of a file or directory.
 pub fn set_permission(path: &str, perm: Permissions) -> IoResult<()> {
-    crate::root::set_permission(None, path, perm)
+    let node = crate::root::lookup(None, path)?;
+    let any_node = node.as_any();
+
+    #[cfg(feature = "lwext4_rs")]
+    if let Some(ext4_node) = any_node.downcast_ref::<Ext4FileWrapper>() {
+        let mut file = ext4_node.0.lock();
+        return file.file_chmod(path, perm.bits() as u32)
+             .map_err(|e| e.try_into().unwrap_or_default());
+    }
+
+    #[cfg(feature = "fatfs")]
+    if any_node.is::<FatFileWrapper<'static, Disk>>() || any_node.is::<FatDirWrapper<'static, Disk>>() {
+        // 对于 fatfs，chmod 操作应该静默成功
+        return Ok(());
+    }
+
+    Err(axio::Error::from(AxError::Unsupported))
 }
 
 /// Changes the owner and group of a file or directory.
 pub fn set_owner(path: &str, uid: u32, gid: u32) -> IoResult<()> {
-    crate::root::set_owner(None, path, uid, gid)
+    let node = crate::root::lookup(None, path)?;
+    let any_node = node.as_any();
+
+    #[cfg(feature = "lwext4_rs")]
+    if let Some(ext4_node) = any_node.downcast_ref::<Ext4FileWrapper>() {
+        let mut file = ext4_node.0.lock();
+        return file.file_chown(path, uid, gid)
+            .map_err(|e| e.try_into().unwrap_or_default());
+    }
+    
+    #[cfg(feature = "fatfs")]
+    if any_node.is::<FatFileWrapper<'static, Disk>>() || any_node.is::<FatDirWrapper<'static, Disk>>() {
+        // 对于 fatfs，chown 操作也应该静默成功
+        return Ok(());
+    }
+
+    Err(axio::Error::from(AxError::Unsupported))
 }

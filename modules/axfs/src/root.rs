@@ -10,14 +10,16 @@ use axsync::Mutex;
 use lazyinit::LazyInit;
 use spin::RwLock;
 
-use crate::fs::lwext4_rust::FileWrapper ; 
 
 use crate::{
     api::FileType,
     fs::{self},
-    fops::FilePerm,
     mounts,
 };
+
+const X_OK: u32 = 1;
+const W_OK: u32 = 2;
+const R_OK: u32 = 4;
 
 def_resource! {
     pub static CURRENT_DIR_PATH: ResArc<Mutex<String>> = ResArc::new();
@@ -341,7 +343,7 @@ pub(crate) fn rename(old: &str, new: &str) -> AxResult {
 }
 
 /// Helper to find parent directory and the final component of a path.
-fn lookup_parent<'a>(dir: Option<&VfsNodeRef>, path: &'a str) -> AxResult<(VfsNodeRef, &'a str)> {
+pub(crate) fn lookup_parent<'a>(dir: Option<&VfsNodeRef>, path: &'a str) -> AxResult<(VfsNodeRef, &'a str)> {
     let path_trimmed = path.trim_end_matches('/');
     if path_trimmed.is_empty() {
         return ax_err!(InvalidInput, "cannot get parent of root");
@@ -365,41 +367,27 @@ fn lookup_parent<'a>(dir: Option<&VfsNodeRef>, path: &'a str) -> AxResult<(VfsNo
     }
 }
 
-
-pub(crate) fn create_symlink(dir: Option<&VfsNodeRef>, link_path: &str, target: &str) -> AxResult {
-    let (parent, link_name) = lookup_parent(dir, link_path)?;
-    if let Some(ext4_parent) = parent.as_any().downcast_ref::<FileWrapper>() {
-        ext4_parent.do_create_symlink(link_name, target)
-    } else {
-        ax_err!(Unsupported)
-    }
-}
-
-pub(crate) fn read_link(dir: Option<&VfsNodeRef>, path: &str) -> AxResult<String> {
+pub(crate) fn access(dir: Option<&VfsNodeRef>, path: &str, mode: u32) -> AxResult {
     let node = lookup(dir, path)?;
-    if let Some(ext4_node) = node.as_any().downcast_ref::<FileWrapper>() {
-        let mut buf = [0u8; 4096];
-        let len = ext4_node.do_read_link(&mut buf)?;
-        Ok(String::from_utf8(buf[..len].to_vec()).map_err(|_| AxError::InvalidData)?)
-    } else {
-        ax_err!(Unsupported)
+    
+    if mode == 0 {
+        return Ok(());
     }
-}
 
-pub(crate) fn set_permission(dir: Option<&VfsNodeRef>, path: &str, perm: FilePerm) -> AxResult {
-    let node = lookup(dir, path)?;
-    if let Some(ext4_node) = node.as_any().downcast_ref::<FileWrapper>() {
-        ext4_node.do_set_permission(perm)
-    } else {
-        ax_err!(Unsupported)
-    }
-}
+    // 获取文件权限
+    let attr = node.get_attr()?;
+    let perm = attr.perm();
 
-pub(crate) fn set_owner(dir: Option<&VfsNodeRef>, path: &str, uid: u32, gid: u32) -> AxResult {
-    let node = lookup(dir, path)?;
-    if let Some(ext4_node) = node.as_any().downcast_ref::<FileWrapper>() {
-        ext4_node.do_set_owner(uid, gid)
-    } else {
-        ax_err!(Unsupported)
+    // 逐一检查权限位
+    if (mode & R_OK) != 0 && !perm.owner_readable() {
+        return ax_err!(PermissionDenied);
     }
+    if (mode & W_OK) != 0 && !perm.owner_writable() {
+        return ax_err!(PermissionDenied);
+    }
+    if (mode & X_OK) != 0 && !perm.owner_executable() {
+        return ax_err!(PermissionDenied);
+    }
+
+    Ok(())
 }

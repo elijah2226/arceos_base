@@ -110,3 +110,19 @@ pub fn sys_lseek(fd: c_int, offset: __kernel_off_t, whence: c_int) -> LinuxResul
     let off = File::from_fd(fd)?.inner().seek(pos)?;
     Ok(off as _)
 }
+
+
+pub fn sys_fsync(fd: c_int) -> LinuxResult<isize> {
+    debug!("sys_fsync <= fd: {}", fd);
+    let file = File::from_fd(fd)?; // 这里的 File 是 starry_api::file::File
+    file.inner().flush()?; // 调用 axfs::fops::File::flush
+    Ok(0)
+}
+
+// pub fn sys_fdatasync(fd: c_int) -> LinuxResult<isize> {
+//     debug!("sys_fdatasync <= fd: {}", fd);
+//     let file = File::from_fd(fd)?;
+//     // 假设我们在 fops::File 中添加了 flush_data 方法
+//     file.inner().flush_data()?; 
+//     Ok(0)
+// }

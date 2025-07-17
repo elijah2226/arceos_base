@@ -6,6 +6,7 @@ use axhal::{
 use starry_api::*;
 use starry_core::task::{time_stat_from_kernel_to_user, time_stat_from_user_to_kernel};
 use syscalls::Sysno;
+use linux_raw_sys::general::AT_FDCWD;
 
 #[register_trap_handler(SYSCALL)]
 fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
@@ -216,6 +217,26 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::readlink => sys_readlink(tf.arg0().into(), tf.arg1().into(), tf.arg2() as _),
         Sysno::chmod => sys_chmod(tf.arg0().into(), tf.arg1() as _),
         Sysno::chown => sys_chown(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
+        Sysno::fsync => sys_fsync(tf.arg0() as _),
+        // Sysno::fdatasync => sys_fdatasync(tf.arg0() as _),
+        Sysno::access => sys_faccessat(
+            AT_FDCWD,
+            tf.arg0().into(),
+            tf.arg1() as _,
+            tf.arg2() as _,
+        ),
+        Sysno::faccessat => sys_faccessat(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2() as _,
+            tf.arg3() as _,
+        ),
+        Sysno::mknodat => sys_mknodat(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2() as _,
+            tf.arg3() as _,
+        ),
 
         _ => {
             warn!("Unimplemented syscall: {}", sysno);

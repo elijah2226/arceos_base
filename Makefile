@@ -163,8 +163,17 @@ debug:
 
 # 内部目标，仅运行 QEMU 而不重新构建。
 justrun:
-	@echo "    Running on qemu (with a fixed command)..."
-	@qemu-system-x86_64 -m 128M -smp 1 -machine q35 -kernel arceos-main/arceos-main_x86_64-qemu-q35.elf -device virtio-net-pci,netdev=net0 -netdev user,id=net0 -nographic
+# 	$(call run_qemu)
+
+# 	@echo "    Running on qemu (with a fixed command)..."
+# 	@qemu-system-x86_64 -m 128M -smp 1 -machine q35 -kernel arceos-main/arceos-main_x86_64-qemu-q35.elf \
+# 	-device virtio-net-pci,netdev=net0 -netdev user,id=net0 -nographic
+
+	@qemu-system-x86_64 -m $(MEM) -smp $(SMP) -machine q35 \
+		-kernel $(OUT_ELF) \
+		-drive file=$(DISK_IMG),format=raw,if=virtio \
+		-device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
+		-nographic
 
 disasm: build
 	$(OBJDUMP) $(OUT_ELF) | less
