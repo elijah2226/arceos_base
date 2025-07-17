@@ -96,7 +96,7 @@ fn uio_irq_handler_2() {
     uio_irq_dispatcher(2);
 }
 
-fn uio_irq_dispatcher(device_id: usize) {
+pub fn uio_irq_dispatcher(device_id: usize) {
     if let Some(device) = get_device(device_id) {
         if let Some(irq) = &device.irq {
             *irq.count.lock() += 1;

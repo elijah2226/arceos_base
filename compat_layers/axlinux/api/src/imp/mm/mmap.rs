@@ -1,11 +1,17 @@
-use alloc::vec;
+use crate::file::{File, FileLike};
+use alloc::{sync::Arc, vec};
 use axerrno::{LinuxError, LinuxResult};
 use axhal::paging::{MappingFlags, PageSize};
 use axtask::{TaskExtRef, current};
+use axuio::file::UioDeviceFile;
+use core::any::Any;
 use linux_raw_sys::general::*;
 use memory_addr::{MemoryAddr, VirtAddr, VirtAddrRange, align_up_4k};
 
-use crate::file::{File, FileLike};
+fn downcast_file_from_axfs<T: Any>(axfs_file: &axfs::fops::File) -> Option<&T> {
+    // 调用我们新加的 node() 方法，然后调用 as_any()
+    axfs_file.node().as_any().downcast_ref::<T>()
+}
 
 bitflags::bitflags! {
     /// `PROT_*` flags for use with [`sys_mmap`].
@@ -90,6 +96,63 @@ pub fn sys_mmap(
         "sys_mmap: addr: {:x?}, length: {:x?}, prot: {:?}, flags: {:?}, fd: {:?}, offset: {:?}",
         addr, length, permission_flags, map_flags, fd, offset
     );
+    // ====================== 【【【 新增 UIO 处理逻辑 】】】 ======================
+    if fd != -1 {
+        // 只有文件映射才可能是 UIO
+        let file_wrapper: Arc<File> = File::from_fd(fd)?;
+        let axfs_file_guard = file_wrapper.inner(); // 这返回一个 MutexGuard<axfs::fops::File>
+        // 尝试向下转型为 UioDeviceFile
+        // 如果你的 downcast_file 放在别处，请修改路径
+        if let Some(uio_file) = axfs_file_guard
+            .node()
+            .as_any()
+            .downcast_ref::<UioDeviceFile>()
+        {
+            // 这就是 UIO 设备！进入特殊处理流程。
+            info!("sys_mmap: Detected UIO device, using custom handler.");
+
+            // 1. 调用 UioDeviceFile 的 handle_mmap 获取物理地址
+            // 注意：C 的 mmap offset 是 isize，而我们的是 usize，需要转换
+            if offset < 0 {
+                return Err(LinuxError::EINVAL);
+            }
+            let paddr = uio_file.handle_mmap(offset as usize, length)?;
+
+            // 2. 寻找一块可用的虚拟地址空间 (这部分逻辑可以复用你下面的代码)
+            let page_size = PageSize::Size4K; // UIO 通常用 4K 页
+            let start_vaddr = if map_flags.contains(MmapFlags::FIXED) {
+                // ... (处理 FIXED 映射的逻辑，可以从下面拷贝) ...
+                VirtAddr::from(addr.align_down(page_size))
+            } else {
+                aspace
+                    .find_free_area(
+                        VirtAddr::from(addr.align_down(page_size)),
+                        length.align_up(page_size),
+                        VirtAddrRange::new(aspace.base(), aspace.end()), // limit
+                        page_size,
+                    )
+                    .ok_or(LinuxError::ENOMEM)?
+            };
+
+            // 3. 执行物理内存映射 (这是核心区别！)
+            // 我们需要一个新的 aspace 方法：map_physical
+            aspace.map_physical(
+                start_vaddr,
+                paddr, // 使用从 UIO 设备获取的物理地址
+                length.align_up(page_size),
+                permission_flags.into(), // 转换权限标志
+                page_size,
+            )?;
+
+            // 4. 成功，返回映射的虚拟地址
+            info!(
+                "sys_mmap: Mapped UIO device paddr {:#x} to vaddr {:#x}",
+                paddr, start_vaddr
+            );
+            return Ok(start_vaddr.as_usize() as isize);
+        }
+    }
+    // ========================== 【【【 新增逻辑结束 】】】 ==========================
 
     let page_size = if map_flags.contains(MmapFlags::HUGE_1GB) {
         PageSize::Size1G

@@ -8,11 +8,11 @@ extern crate alloc;
 extern crate axerrno; // 【【【新增】】】
 
 mod device;
-mod file;
+pub mod file;
 mod manager;
 
 pub use device::UioMemoryRegion;
-pub use manager::register_device;
+pub use manager::{register_device, uio_irq_dispatcher};
 
 use alloc::string::ToString;
 use alloc::vec;
@@ -56,7 +56,7 @@ pub fn test_register_dummy_device() {
     info!("Attempting to register a dummy UIO device for testing...");
     // 模拟一个设备，它有 64KB 的内存区域和 virtio-pci 的中断号 11
     // (在 QEMU aarch64 上，virtio-net 的中断号通常是 33，在 x86_64 上是 11)
-    let paddr = axhal::mem::PhysAddr::from(0x1000_0000); // 随便选一个未使用的物理地址
+    let paddr = axhal::mem::PhysAddr::from(0xb000_0000); // 随便选一个未使用的物理地址
     let size = 64 * 1024; // 64KB
     let irq = 11; // virtio-pci IRQ on x86_64 QEMU
 

@@ -19,6 +19,7 @@ axstd = { workspace = true }
 axfeat = { workspace = true }
 axuio = { workspace = true }
 axns = { workspace = true }
+axtask = { workspace = true }
 axfs_vfs = "0.1"
 axfs_devfs = { version = "0.1"}
 

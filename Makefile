@@ -148,11 +148,21 @@ else
 	@echo "====== Preparing user apps for NORMAL/DEBUG scenario"
 	# 使用 Make 的 wildcard 和 if 函数，如果 DISK_IMG 不存在，则执行创建命令
 	$(if $(wildcard $(DISK_IMG)),, \
-		@echo "Disk image '$(DISK_IMG)' not found. Creating a new one..."; \
+		echo "Disk image '$(DISK_IMG)' not found. Creating a new one..."; \
 		qemu-img create -f raw $(DISK_IMG) 20M; \
 		echo "Formatting '$(DISK_IMG)' as FAT32."; \
 		mkfs.fat $(DISK_IMG); \
 	)
+	@echo "====== Copying user applications to disk image ======"
+	@echo "--> Copying shell..."
+	@mmd -i $(DISK_IMG) ::/bin || true # '|| true' 忽略目录已存在的错误
+	@MTOOLS_LFN=0 mcopy -i $(DISK_IMG) apps/busybox/bin/sh ::/bin/sh
+
+	@echo "--> Building uio_test..."
+	@$(MAKE) -C apps/uio build
+	@echo "--> Copying uio_test..."
+	@MTOOLS_LFN=0 mcopy -i $(DISK_IMG) apps/uio/build/uio_test ::/bin/uio
+
 endif
 
 defconfig: _axconfig-gen

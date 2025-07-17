@@ -78,6 +78,7 @@ linux_compat = [
     "axns/thread-local", # <--- 确保启用
     "axlinux", "axlinux/task", "axlinux/fs", 
     "axlinux/net",
+    "axlinux/normal_mode",
 ]
 
 # --- 【【【新增：为 normal 模式添加一个特性】】】 ---

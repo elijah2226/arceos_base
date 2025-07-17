@@ -29,6 +29,7 @@ linkme.workspace = true
 linux-raw-sys.workspace = true
 memory_addr.workspace = true
 spin.workspace = true
+axuio.workspace = true
 
 # starry-core.workspace = true
 # 【关键】使用相对路径依赖 starry-core

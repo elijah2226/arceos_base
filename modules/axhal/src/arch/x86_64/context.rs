@@ -210,6 +210,31 @@ impl UspaceContext {
         super::disable_irqs();
         assert_eq!(super::tss_get_rsp0(), kstack_top);
         super::tls::switch_to_user_fs_base(&self.0);
+
+        // 【【【 使用这个新的、完整的修复代码块 】】】
+        info!("[axhal] Preparing to enter uspace, configuring CR0 and CR4...");
+        unsafe {
+            // 1. Configure CR0: Clear the EM (emulation) bit to enable SSE.
+            let mut cr0: u64;
+            core::arch::asm!("mov {}, cr0", out(reg) cr0, options(nostack, nomem));
+            if (cr0 & (1 << 2)) != 0 {
+                cr0 &= !(1 << 2); // Clear EM bit (bit 2)
+                core::arch::asm!("mov cr0, {}", in(reg) cr0, options(nostack, nomem));
+                info!("[axhal] CR0.EM was set, now cleared.");
+            }
+
+            // 2. Configure CR4: Set the OSFXSR bit to indicate OS support for FXSAVE/FXRSTOR.
+            let mut cr4: u64;
+            core::arch::asm!("mov {}, cr4", out(reg) cr4, options(nostack, nomem));
+            if (cr4 & (1 << 9)) == 0 {
+                cr4 |= (1 << 9); // Set OSFXSR bit (bit 9)
+                core::arch::asm!("mov cr4, {}", in(reg) cr4, options(nostack, nomem));
+                info!("[axhal] CR4.OSFXSR was clear, now set.");
+            }
+        }
+        info!("[axhal] Control registers configured. Jumping to uspace.");
+        // 【【【 修复代码结束 】】】
+
         unsafe {
             core::arch::asm!("
                 mov     rsp, {tf}

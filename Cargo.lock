@@ -137,6 +137,7 @@ dependencies = [
  "axlinux",
  "axns",
  "axstd",
+ "axtask",
  "axuio",
 ]
 
@@ -1833,6 +1834,7 @@ dependencies = [
  "axsignal",
  "axsync",
  "axtask",
+ "axuio",
  "bitflags 2.9.1",
  "cfg-if",
  "ctor_bare",

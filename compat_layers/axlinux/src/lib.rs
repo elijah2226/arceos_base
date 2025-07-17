@@ -8,7 +8,8 @@ extern crate axlog;
 extern crate alloc;
 
 // 在文件顶部添加这两行
-use alloc::string::ToString;
+use alloc::string::String;
+use alloc::string::ToString; // 导入 String 类型
 
 // --- 【【【在这里加入所有缺失的依赖声明】】】 ---
 // This brings the crate names into the root namespace of the `axlinux` crate,
@@ -35,30 +36,22 @@ mod syscall;
 
 // use alloc::string::ToString;
 
-// 【修改2】提供一个公共的、可被 arceos-main 调用的初始化函数
-/// Initializes the Linux compatibility layer.
-/// This function sets up the initial process and starts the main loop,
-/// either running tests or launching an init process.
 pub fn init() -> ! {
-    // 无论在哪种模式下，都需要创建 PID=1 的 init 进程结构。
     axprocess::Process::new_init(axtask::current().id().as_u64() as _).build();
     info!("[axlinux] init process structure created.");
 
-    // 使用 #[cfg] 进行条件编译，这部分逻辑和原来完全一样
     #[cfg(not(feature = "normal_mode"))]
     run_tests();
 
     #[cfg(feature = "normal_mode")]
     start_init_process();
 
-    // 无论是哪条路径，都不会返回
     unreachable!();
 }
 
 // 【修改3】将原来的 main 函数内容改造成库的私有函数
 // 并且它们不再需要 #[no_mangle] 或 #[unsafe]
 
-/// Test mode execution logic.
 #[cfg(not(feature = "normal_mode"))]
 fn run_tests() -> () {
     info!("[axlinux] Running in TEST mode.");
@@ -87,24 +80,58 @@ fn run_tests() -> () {
     }
 
     info!("[axlinux] All tests finished, shutting down.");
-    axhal::misc::terminate(); // 所有测试跑完后关机
+    axhal::misc::terminate();
 }
 
-/// Normal startup mode execution logic.
 #[cfg(feature = "normal_mode")]
 fn start_init_process() -> ! {
+    // info!("[axlinux] Running in NORMAL mode.");
+    // const INIT_PATH: &str = "/bin/sh";
+    // let args = shlex::split(INIT_PATH).expect("Failed to parse init path");
+    // let envs = ["PATH=/bin:/usr/bin".to_string(), "PWD=/".to_string()];
+
+    // info!("Starting init process: {:?} with envs {:?}", args, envs);
+    // if entry::run_user_app(&args, &envs).is_none() {
+    //     panic!("Failed to start init process!");
+    // }
+    // axhal::misc::terminate();
+    // info!("[axlinux] Init process launched. Entering kernel idle loop.");
+    // loop {
+    //     axtask::yield_now();
+    // }
+
     info!("[axlinux] Running in NORMAL mode.");
-    const INIT_PATH: &str = "/bin/sh";
-    let args = shlex::split(INIT_PATH).expect("Failed to parse init path");
-    let envs = ["PATH=/bin:/usr/bin".to_string(), "PWD=/".to_string()];
 
-    info!("Starting init process: {:?} with envs {:?}", args, envs);
-    if entry::run_user_app(&args, &envs).is_none() {
-        panic!("Failed to start init process!");
+    // ==================【【【修改点在这里】】】==================
+
+    // 定义我们要按顺序执行的测试程序列表
+    let test_apps = ["/bin/uio", "/bin/sh"]; // 未来可以增加更多，比如 ["/bin/uio_test", "/bin/another_test"]
+
+    for (i, &app_path) in test_apps.iter().enumerate() {
+        info!(
+            "[axlinux] Starting test process {}/{}: [{}]",
+            i + 1,
+            test_apps.len(),
+            app_path
+        );
+
+        // 解析参数
+        let args = shlex::split(app_path).expect("Failed to parse app path");
+        // 对于测试，我们可以用空的环境变量
+        let envs: &[String] = &[];
+
+        // 运行用户程序，并等待它结束
+        if let Some(exit_code) = entry::run_user_app(&args, envs) {
+            info!(
+                "[axlinux] Test app '{}' exited with code: {}",
+                app_path, exit_code
+            );
+        } else {
+            error!("[axlinux] Failed to start test app: '{}'", app_path);
+        }
     }
 
-    info!("[axlinux] Init process launched. Entering kernel idle loop.");
-    loop {
-        axtask::yield_now();
-    }
+    // 所有测试跑完后，可以选择关机或进入 idle
+    info!("[axlinux] All test processes finished. Shutting down.");
+    axhal::misc::terminate(); // 关机
 }

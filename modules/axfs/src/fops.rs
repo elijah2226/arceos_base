@@ -279,6 +279,15 @@ impl File {
     pub fn get_attr(&self) -> AxResult<FileAttr> {
         self.access_node(Cap::empty())?.get_attr()
     }
+
+    // 【【【 新增这个公共的 getter 方法 】】】
+    /// Returns a reference to the underlying VFS node.
+    ///
+    /// This bypasses capability checks and should be used with caution,
+    /// typically by internal kernel modules that need direct node access.
+    pub fn node(&self) -> &VfsNodeRef {
+        unsafe { self.node.access_unchecked() }
+    }
 }
 
 impl Directory {
