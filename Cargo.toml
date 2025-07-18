@@ -19,6 +19,7 @@ members = [
     "modules/axsync",
     "modules/axtask",
     "modules/axuio",
+    "modules/axdevice_event",
 
     "api/axfeat",
     "api/arceos_api",
@@ -77,6 +78,7 @@ axtask = { path = "modules/axtask" }
 axdma = { path = "modules/axdma" }
 
 axuio = { path = "modules/axuio" }
+axdevice_event = { path = "modules/axdevice_event" }
 axlinux = { path = "compat_layers/axlinux" }
 
 # --- 【【【新增：兼容层专属依赖】】】 ---

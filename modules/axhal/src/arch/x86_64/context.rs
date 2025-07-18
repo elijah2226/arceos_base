@@ -227,7 +227,7 @@ impl UspaceContext {
             let mut cr4: u64;
             core::arch::asm!("mov {}, cr4", out(reg) cr4, options(nostack, nomem));
             if (cr4 & (1 << 9)) == 0 {
-                cr4 |= (1 << 9); // Set OSFXSR bit (bit 9)
+                cr4 |= 1 << 9; // Set OSFXSR bit (bit 9)
                 core::arch::asm!("mov cr4, {}", in(reg) cr4, options(nostack, nomem));
                 info!("[axhal] CR4.OSFXSR was clear, now set.");
             }

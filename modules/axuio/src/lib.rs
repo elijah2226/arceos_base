@@ -14,8 +14,8 @@ mod manager;
 pub use device::UioMemoryRegion;
 pub use manager::{register_device, uio_irq_dispatcher};
 
-use alloc::string::ToString;
-use alloc::vec;
+use alloc::{string::ToString, vec};
+use axdevice_event;
 use axerrno::{AxError, AxResult};
 
 pub fn init() {
@@ -65,4 +65,44 @@ pub fn test_register_dummy_device() {
         Ok(id) => info!("Dummy UIO device registered with ID: {}", id),
         Err(e) => error!("Failed to register dummy UIO device: {:?}", e),
     }
+}
+
+/// Registers all devices discovered by axdriver as UIO devices.
+/// This should be called after axdriver has finished probing devices.
+pub fn register_discovered_devices() {
+    info!("axuio: Registering discovered devices from axdevice_event...");
+
+    let mut devices_to_register = vec::Vec::new();
+    // 获取锁，并将已发现的设备信息移动到本地 vec 中，以便在释放锁后处理
+    {
+        let mut discovered_devices_lock = axdevice_event::DISCOVERED_DEVICES.lock();
+        // 使用 drain() 迭代器，将所有元素移动到新的 Vec 中并清空原始 Vec
+        devices_to_register.extend(discovered_devices_lock.drain(..));
+    }
+
+    for (i, info) in devices_to_register.into_iter().enumerate() {
+        if let Some((paddr, size)) = info.mmio_region {
+            // 只有当设备有 MMIO 区域时才注册为 UIO 设备
+            info!(
+                "axuio: Registering UIO for device {}: {} ({}) at PA:{:#x}, size={:#x}, irq={:?}",
+                i, info.name, info.pci_bdf, paddr, size, info.irq_num
+            );
+            match manager::register_device(
+                info.name,
+                info.pci_bdf, // 使用 PCI BDF 作为版本或类似唯一字符串
+                vec![device::UioMemoryRegion { paddr, size }],
+                info.irq_num, // IRQ 可以是 None
+            ) {
+                Ok(id) => info!("axuio: Device registered as /dev/uio{}", id),
+                Err(e) => error!("axuio: Failed to register device as UIO: {:?}", e),
+            }
+        } else {
+            // 如果设备没有 MMIO 区域，则不注册 UIO 设备
+            warn!(
+                "axuio: Discovered device {} has no MMIO region, skipping UIO registration.",
+                info.name
+            );
+        }
+    }
+    info!("axuio: Finished registering discovered devices.");
 }

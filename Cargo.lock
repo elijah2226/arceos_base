@@ -282,6 +282,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "axdevice_event"
+version = "0.0.0"
+dependencies = [
+ "axalloc",
+ "axdriver_base",
+ "axhal",
+ "axsync",
+ "lazy_static",
+]
+
+[[package]]
 name = "axdisplay"
 version = "0.1.0"
 dependencies = [
@@ -313,6 +324,7 @@ version = "0.1.0"
 dependencies = [
  "axalloc",
  "axconfig",
+ "axdevice_event",
  "axdma",
  "axdriver_base",
  "axdriver_block",
@@ -708,6 +720,7 @@ name = "axuio"
 version = "0.1.0"
 dependencies = [
  "axconfig",
+ "axdevice_event",
  "axdriver",
  "axerrno",
  "axfs",
