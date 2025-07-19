@@ -106,3 +106,37 @@ pub fn register_discovered_devices() {
     }
     info!("axuio: Finished registering discovered devices.");
 }
+
+/// 注册 HPET (High Precision Event Timer) 作为一个 UIO 设备。
+///
+/// HPET 是一个理想的 UIO Demo，因为它拥有一个标准化的、非 PCI 发现的 MMIO 区域，
+/// 其物理地址是固定的。这使得我们可以直接注册它，而无需复杂的总线扫描。
+pub fn register_hpet_device() -> AxResult<()> {
+    info!("Attempting to register HPET as a UIO device...");
+
+    // HPET 规范中定义的标准物理基地址
+    let hpet_paddr = axhal::mem::PhysAddr::from(0xFED00000);
+    // HPET 寄存器块的大小是 1KB
+    let hpet_size = 0x400;
+    // 在 QEMU 中，HPET 的中断通常是 IRQ 8。我们注册它来测试中断处理路径。
+    let hpet_irq = Some(8);
+
+    match manager::register_device(
+        "hpet-0".to_string(), // 设备名称
+        "1.0.0".to_string(),  // 版本字符串
+        vec![UioMemoryRegion {
+            paddr: hpet_paddr,
+            size: hpet_size,
+        }],
+        hpet_irq,
+    ) {
+        Ok(id) => {
+            info!("HPET successfully registered as UIO device with ID: {}", id);
+            Ok(()) // 返回成功
+        }
+        Err(e) => {
+            error!("Failed to register HPET UIO device: {:?}", e);
+            Err(e) // 将错误传递出去
+        }
+    }
+}

@@ -1,36 +1,43 @@
-# apps/uio_test/Makefile
+# apps/uio/Makefile
 
-# 假设你的交叉编译器前缀是 x86_64-linux-gnu-
-# 如果是 riscv64, 就换成 riscv64-linux-gnu-
+# 交叉编译器配置 (保持不变)
 CROSS_COMPILE ?= x86_64-linux-gnu-
 CC := $(CROSS_COMPILE)gcc
 STRIP := $(CROSS_COMPILE)strip
 
-# CFLAGS: -static 表示静态链接，-O2 是优化等级
+# 编译和链接标志 (保持不变)
 CFLAGS := -static -g -Wall
 LDFLAGS := -static
 
-TARGET := uio_test
-SRCS := uio_test.c
+TARGETS := uio_test hpet_uio_test
+
+BUILD_DIR := build
+
+# 根据 TARGETS 列表和 BUILD_DIR 自动生成所有最终程序的完整路径。
+# 例如，这会生成 "build/uio_test build/hpet_uio_test"
+TARGET_BINS := $(addprefix $(BUILD_DIR)/, $(TARGETS))
 
 # -------------------------------------------------------------
 
-OBJS := $(SRCS:.c=.o)
-BUILD_DIR := build
-
+# .PHONY 定义了伪目标，它们不代表真实文件
 .PHONY: all build clean
 
+# 默认目标是 build
 all: build
 
-build: $(BUILD_DIR)/$(TARGET)
+# build 目标现在依赖于 TARGET_BINS 列表中的所有程序。
+# make 会自动为列表中的每个程序寻找构建规则。
+build: $(TARGET_BINS)
 
-$(BUILD_DIR)/$(TARGET): $(OBJS)
+# 这是一条强大的模式规则，它告诉 make 如何从任何一个 .c 文件创建对应的可执行文件。
+# $@ 代表目标 (例如 build/hpet_uio_test)
+# $< 代表第一个依赖 (例如 hpet_uio_test.c)
+$(BUILD_DIR)/%: %.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(LDFLAGS) -o $@ $^
-# @$(STRIP) $@
+	@echo "  CC    $@ (from $<)"
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $<
+#	@$(STRIP) $@
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
+# 清理规则 (保持不变，它会删除整个 build 目录)
 clean:
 	rm -rf $(BUILD_DIR) *.o

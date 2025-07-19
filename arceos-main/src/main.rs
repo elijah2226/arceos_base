@@ -22,8 +22,15 @@ pub extern "C" fn main() {
         println!("[arceos-main] Initializing UIO subsystem...");
         axuio::init();
         // 这个调用现在是完全安全的，因为它依赖的 DEVFS 已经初始化完毕。
-        axuio::register_discovered_devices();
-        axuio::test_register_dummy_device();
+        // axuio::register_discovered_devices();
+        // axuio::test_register_dummy_device();
+        println!("[arceos-main] Initializing UIO HPET device...");
+        if let Err(e) = axuio::register_hpet_device() {
+            println!(
+                "[arceos-main] Failed to initialize UIO HPET device: {:?}",
+                e
+            );
+        }
 
         axtask::spawn(|| {
             loop {

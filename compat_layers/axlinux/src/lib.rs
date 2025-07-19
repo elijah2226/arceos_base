@@ -105,7 +105,7 @@ fn start_init_process() -> ! {
     // ==================【【【修改点在这里】】】==================
 
     // 定义我们要按顺序执行的测试程序列表
-    let test_apps = ["/bin/uio", "/bin/sh"]; // 未来可以增加更多，比如 ["/bin/uio_test", "/bin/another_test"]
+    let test_apps = ["/bin/hpet_test", "/bin/sh"]; // 未来可以增加更多，比如 ["/bin/uio_test", "/bin/another_test"]
 
     for (i, &app_path) in test_apps.iter().enumerate() {
         info!(
