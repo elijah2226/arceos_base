@@ -34,6 +34,9 @@ cfg_if::cfg_if! {
         pub const SYSCALL_MKDIRAT: usize = 258;
         pub const SYSCALL_PAUSE: usize = 34; 
         pub const SYSCALL_RENAME: usize = 82;
+        pub const SYSCALL_SET_TIMEOFDAY: usize = 164;
+        pub const SYSCALL_GET_TIMEOFDAY: usize = 96;
+        pub const SYSCALL_CLOCK_GETRES: usize = 229;   
     }
     else {
         pub const SYSCALL_READ: usize = 63;
@@ -49,6 +52,9 @@ cfg_if::cfg_if! {
         pub const SYSCALL_WAITPID: usize = 260;
         pub const SYSCALL_CLOCK_GETTIME: usize = 403;
         pub const SYSCALL_CLOCK_NANOSLEEP: usize = 407;
+        pub const SYSCALL_SET_TIMEOFDAY: usize = 170;
+        pub const SYSCALL_GET_TIMEOFDAY: usize = 169;
+        pub const SYSCALL_CLOCK_GETRES: usize = 114;
     }
 }
 
@@ -167,4 +173,16 @@ pub fn sys_pause() -> isize {
 
 pub fn sys_rename(old_path: *const c_char, new_path: *const c_char) -> isize {
     syscall(SYSCALL_RENAME, [old_path as usize, new_path as usize, 0])
+}
+
+pub fn sys_settimeofday(tv: &TimeSpec, tz: *const ()) -> isize {
+    syscall(SYSCALL_SET_TIMEOFDAY, [tv as *const _ as usize, tz as usize, 0])
+}
+
+pub fn sys_gettimeofday(tv: *mut TimeSpec, tz: *mut ()) -> isize {
+    syscall(SYSCALL_GET_TIMEOFDAY, [tv as usize, tz as usize, 0])
+}
+
+pub fn sys_clock_getres(clk: ClockId, res: &mut TimeSpec) -> isize {
+    syscall(SYSCALL_CLOCK_GETTIME, [clk as _, res as *mut _ as usize, 0])
 }

@@ -56,3 +56,15 @@ pub fn sleep(seconds: usize) -> isize {
         0
     }
 }
+
+pub fn clock_getres(clk: ClockId, res: &mut TimeSpec) -> isize {
+    sys_clock_getres(clk, res)
+}
+
+pub fn settimeofday(tv: &TimeSpec, tz: *const ()) -> isize {
+    sys_settimeofday(tv, tz)
+}
+
+pub fn gettimeofday(tv: &mut TimeSpec, tz: *mut ()) -> isize {
+    sys_gettimeofday(tv, tz)
+}
