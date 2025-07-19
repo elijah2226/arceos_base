@@ -12,6 +12,7 @@ use axns::{ResArc, def_resource};
 use flatten_objects::FlattenObjects;
 use linux_raw_sys::general::{stat, statx};
 use spin::RwLock;
+use crate::ctypes;
 
 pub use self::{
     fs::{Directory, File},
@@ -62,6 +63,21 @@ impl From<Kstat> for stat {
         stat.st_blocks = value.blocks as _;
 
         stat
+    }
+}
+
+impl From<ctypes::stat> for Kstat {
+    fn from(s: ctypes::stat) -> Self {
+        Self {
+            ino: s.st_ino as u64,
+            nlink: s.st_nlink as u32,
+            uid: s.st_uid,
+            gid: s.st_gid,
+            mode: s.st_mode,
+            size: s.st_size as u64,
+            blocks: s.st_blocks as u64,
+            blksize: s.st_blksize as u32,
+        }
     }
 }
 

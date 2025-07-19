@@ -211,6 +211,18 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
         Sysno::clock_getres => sys_clock_getres(tf.arg0() as _, tf.arg1().into()),
         Sysno::settimeofday => sys_settimeofday(tf.arg0().into(), tf.arg1().into()),
+        #[cfg(target_arch = "riscv64")]
+        Sysno::clock_gettime64 => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
+        #[cfg(target_arch = "riscv64")]
+        Sysno::clock_nanosleep_time64 => sys_clock_nanosleep(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2().into(),
+            tf.arg3().into(),
+        ),
+        #[cfg(target_arch = "riscv64")]
+        Sysno::clock_gettime64 => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
+
 
         // fs ctl
         Sysno::symlink => sys_symlink(tf.arg0().into(), tf.arg1().into()),
@@ -244,6 +256,32 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         //resources
         Sysno::getrlimit => sys_getrlimit(tf.arg0() as _, tf.arg1() as _),
         Sysno::setrlimit => sys_setrlimit(tf.arg0() as _, tf.arg1() as _),
+
+        // io multiplexing
+        #[cfg(target_arch = "x86_64")]
+        Sysno::select => sys_select(
+            tf.arg0() as _,
+            tf.arg1()as _,
+            tf.arg2() as _,
+            tf.arg3() as _,
+            tf.arg4() as _,
+        ),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::epoll_create => sys_epoll_create(tf.arg0() as _),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::epoll_ctl => sys_epoll_ctl(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2() as _,
+            tf.arg3() as _,
+        ), 
+        #[cfg(target_arch = "x86_64")]
+        Sysno::epoll_wait => sys_epoll_wait(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2() as _,
+            tf.arg3() as _,
+        ),
 
         _ => {
             warn!("Unimplemented syscall: {}", sysno);
