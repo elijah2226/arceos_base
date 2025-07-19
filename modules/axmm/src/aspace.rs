@@ -705,6 +705,72 @@ impl AddrSpace {
             },
         }
     }
+
+    /// Maps a specified physical memory region to a specified virtual address range.
+    ///
+    /// This function is primarily used for device memory mapping (like UIO),
+    /// where the physical address is predetermined by hardware. It bypasses
+    /// the MemorySet/MemoryArea logic and operates directly on the page table.
+    ///
+    /// # Warning
+    /// This function does not create a `MemoryArea`, so the mapping will not be
+    /// tracked by `self.areas`. This is suitable for special-purpose mappings
+    /// that don't need to participate in operations like `fork` (COW) or `munmap`.
+    /// For UIO, this is usually acceptable as the mapping lifetime matches the process lifetime.
+    ///
+    /// # Parameters
+    /// - `vaddr`: The starting virtual address. Must be page-aligned.
+    /// - `paddr`: The starting physical address. Must be page-aligned.
+    /// - `size`: The size of the region to map. Must be a multiple of the page size.
+    /// - `flags`: The mapping flags (read, write, user, etc.).
+    /// - `align`: The page size to use for mapping (e.g., 4KB).
+    ///
+    /// # Returns
+    /// An `AxResult` indicating success or failure.
+    pub fn map_physical(
+        &mut self,
+        vaddr: VirtAddr,
+        paddr: PhysAddr,
+        size: usize,
+        mut flags: MappingFlags,
+        align: PageSize,
+    ) -> AxResult {
+        // 1. 验证参数的合法性
+        self.validate_region(vaddr, size, align)?;
+        if !paddr.is_aligned(align) {
+            return ax_err!(InvalidInput, "physical address not aligned");
+        }
+
+        flags |= MappingFlags::DEVICE;
+        info!("map_physical: Mapping with final flags: {:?}", flags);
+
+        // 2. 循环遍历，逐页进行映射
+        let mut current_vaddr = vaddr;
+        let mut current_paddr = paddr;
+        let end_vaddr = vaddr + size;
+        let page_size_bytes: usize = align.into();
+
+        while current_vaddr < end_vaddr {
+            // 使用底层的 PageTable API 进行映射
+            let tlb_flush_obj = self
+                .pt
+                .map(current_vaddr, current_paddr, align, flags)
+                .map_err(|e| {
+                    error!("Page table map failed: {:?}", e);
+                    AxError::BadState
+                })?;
+
+            // 【【【 强制执行 TLB 刷新 】】】
+            tlb_flush_obj.flush();
+            info!("Flushed TLB for vaddr {:#x}", current_vaddr); // 打印日志确认刷新
+            // 【【【 强制执行 TLB 刷新结束 】】】
+
+            current_vaddr += page_size_bytes;
+            current_paddr += page_size_bytes;
+        }
+
+        Ok(())
+    }
 }
 
 impl fmt::Debug for AddrSpace {

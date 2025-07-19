@@ -1,0 +1,10 @@
+[package]
+name = "axdevice_event"
+edition = "2021"
+
+[dependencies]
+axhal = { workspace = true } # For PhysAddr
+axalloc = { workspace = true } # For String, Vec
+lazy_static = { workspace = true }
+axsync = { workspace = true } # For Mutex
+axdriver_base = { git = "https://github.com/arceos-org/axdriver_crates.git", tag = "v0.1.2" }

@@ -68,11 +68,9 @@ log-level-info = ["axlog/log-level-info"]
 log-level-debug = ["axlog/log-level-debug"]
 log-level-trace = ["axlog/log-level-trace"]
 
-
-# --- 【【【定义一个健壮的 uspace 特性】】】 ---
-# 用户空间支持是一个复杂的概念，它依赖于分页、TLS 和 HAL 层的支持。
-# 我们把这些依赖都封装在这里。
 uspace = ["paging", "tls", "axhal/uspace"]
+
+uio = ["fs", "irq", "dep:axuio"]
 
 linux_compat = [
     "paging", "uspace", "irq", "multitask", "fs", 
@@ -80,6 +78,7 @@ linux_compat = [
     "axns/thread-local", # <--- 确保启用
     "axlinux", "axlinux/task", "axlinux/fs", 
     "axlinux/net",
+    "axlinux/normal_mode",
 ]
 
 # --- 【【【新增：为 normal 模式添加一个特性】】】 ---
@@ -109,3 +108,4 @@ axtask = { workspace = true, optional = true }
 kspin = { version = "0.1", optional = true }
 axlinux = { workspace = true, optional = true }
 axns = { workspace = true, optional = true }
+axuio = { workspace = true, optional = true }

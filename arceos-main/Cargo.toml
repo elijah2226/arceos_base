@@ -14,18 +14,16 @@ path = "src/main.rs"
 
 [dependencies]
 # 只保留应用层和特性总开关的依赖
-axruntime = { workspace = true } # 必须直接依赖，以获取 panic_handler
 axlinux = { workspace = true }
 axstd = { workspace = true }
-# axfeat = { path = "../api/axfeat" } # <-- 确认路径正确
-axfeat = { workspace = true } # <-- 确认路径正确
-axns = { workspace = true } # <--- 加入这一行
+axfeat = { workspace = true }
+axuio = { workspace = true }
+axns = { workspace = true }
+axtask = { workspace = true }
+axfs_vfs = "0.1"
+axfs_devfs = { version = "0.1"}
 
 [features]
-# 我们自己定义的 "always_on" 实验特性可以保留或删掉
-default = ["always_on"]
-always_on = []
-
 # --- 关键的代理特性定义 ---
 # 定义 arceos-main 自己的特性，并告诉 Cargo，
 # 当这些特性被激活时，去激活 axfeat 依赖的同名特性。

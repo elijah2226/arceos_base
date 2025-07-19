@@ -5,64 +5,60 @@
 
 use axstd::println;
 
+extern crate alloc;
 extern crate axlinux;
 extern crate axns;
+
+use alloc::sync::Arc;
+use axfs_devfs::DeviceFileSystem;
 
 /// This is the main function for the unikernel application.
 /// It must be named `main` and have the C ABI to be called by `axruntime`.
 #[unsafe(no_mangle)]
 pub extern "C" fn main() {
-    // --- 新增的实验代码 ---
-    #[cfg(feature = "always_on")]
-    {
-        // 如果这行日志被打印，说明 #[cfg] 是能正常工作的。
-        println!("[arceos-main] TEST PASSED: The 'always_on' feature is recognized!");
-    }
-    #[cfg(not(feature = "always_on"))]
-    {
-        // 如果这行日志被打印，说明 #[cfg] 彻底坏掉了。
-        println!("[arceos-main] TEST FAILED: The 'always_on' feature is NOT recognized!");
-    }
-    // --- 实验代码结束 ---
-
     println!("[arceos-main] Application 'main' function started!");
-    // ...
+
+    {
+        println!("[arceos-main] Initializing UIO subsystem...");
+        axuio::init();
+        // 这个调用现在是完全安全的，因为它依赖的 DEVFS 已经初始化完毕。
+        // axuio::register_discovered_devices();
+        // axuio::test_register_dummy_device();
+        println!("[arceos-main] Initializing UIO HPET device...");
+        if let Err(e) = axuio::register_hpet_device() {
+            println!(
+                "[arceos-main] Failed to initialize UIO HPET device: {:?}",
+                e
+            );
+        }
+
+        println!("[arceos-main] 初始化 UIO VGA 文本设备...");
+        if let Err(e) = axuio::register_vga_text_device() {
+            println!("[arceos-main] 初始化 UIO VGA 文本设备失败: {:?}", e);
+        }
+
+        axtask::spawn(|| {
+            loop {
+                axtask::sleep(core::time::Duration::from_secs(5)); // 等待 5 秒
+                println!("[kernel-test] Manually triggering dummy UIO IRQ...");
+                axuio::uio_irq_dispatcher(0);
+                axuio::uio_irq_dispatcher(1);
+            }
+        });
+    }
+
+    // --- 【【【阶段 3: 启动用户态进程】】】 ---
     #[cfg(feature = "linux_compat")]
     {
-        // Initialize the Linux compatibility layer.
-        println!("[arceos-main] Linux compatibility layer initialized.");
+        println!("[arceos-main] Handing control to Linux...");
         axlinux::init();
     }
-    #[cfg(feature = "fp_simd")]
-    {
-        // Initialize the Linux compatibility layer.
-        println!("[arceos-main] FP SIMD layer initialized.");
-    }
-    #[cfg(feature = "fp_simd")]
-    {
-        // Initialize the Linux compatibility layer.
-        println!("[arceos-main] FP SIMD layer initialized.");
-    }
-    #[cfg(feature = "uio")]
-    {
-        // Initialize the UIO layer.
-        axuio::init();
-        println!("[arceos-main] UIO layer initialized.");
-    }
-    #[cfg(feature = "axfeat/linux_normal_mode")]
-    {
-        // Start the init process.
-        axlinux::start_init_process();
-        println!("[arceos-main] Init process started.");
-    }
 
-    // 你也可以添加一个 "not" 检查，用于验证特性未被启用的情况。
     #[cfg(not(feature = "linux_compat"))]
     {
-        println!("[arceos-main] CHECK NOTICE: 'linux_compat' feature is DISABLED.");
-        axlinux::init();
+        println!("[arceos-main] Kernel initialized. Halting.");
+        loop {
+            axhal::cpu::spin_loop_hint();
+        }
     }
-    // --- 检验代码结束 ---
-
-    println!("[arceos-main] Application 'main' function finished.");
 }

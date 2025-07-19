@@ -112,9 +112,15 @@ pub fn load_user_app(
     args: &[String],
     envs: &[String],
 ) -> AxResult<(VirtAddr, VirtAddr)> {
+    // 【【【 新增的调试代码 】】】
+    info!("Forcing current directory to root before loading app.");
+    axfs::api::set_current_dir("/").expect("Failed to set CWD to root!");
+    // 【【【 调试代码结束 】】】
+
     if args.is_empty() {
         return Err(AxError::InvalidInput);
     }
+    info!("Loading user app with path: {}", args[0].as_str()); // 增加日志
     let file_data = axfs::api::read(args[0].as_str())?;
     if file_data.starts_with(b"#!") {
         let head = &file_data[2..file_data.len().min(256)];
