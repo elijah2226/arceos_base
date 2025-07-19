@@ -240,8 +240,8 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
 
         
         //resources
-        Sysno::getrlimit => sys_getrlimit(tf.arg0() as _, tf.arg1().into()),
-        Sysno::setrlimit => sys_setrlimit(tf.arg0() as _, tf.arg1().into()),
+        Sysno::getrlimit => sys_getrlimit(tf.arg0() as _, tf.arg1() as _),
+        Sysno::setrlimit => sys_setrlimit(tf.arg0() as _, tf.arg1() as _),
 
         _ => {
             warn!("Unimplemented syscall: {}", sysno);

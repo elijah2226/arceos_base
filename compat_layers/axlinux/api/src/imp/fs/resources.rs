@@ -6,7 +6,7 @@ use crate::file::AX_FILE_LIMIT;
 /// Get resource limitations
 ///
 /// TODO: support more resource types
-pub fn sys_getrlimit(resource: c_int, rlimits: *mut rlimit) -> Result<c_int, LinuxError> {
+pub fn sys_getrlimit(resource: c_int, rlimits: *mut rlimit) -> Result<isize, LinuxError> {
     if rlimits.is_null() {
         return Ok(0);
     }
@@ -28,7 +28,7 @@ pub fn sys_getrlimit(resource: c_int, rlimits: *mut rlimit) -> Result<c_int, Lin
 /// Set resource limitations
 ///
 /// TODO: support more resource types
-pub fn sys_setrlimit(resource: c_int, rlimits: *mut rlimit) -> Result<c_int, LinuxError> {
+pub fn sys_setrlimit(resource: c_int, rlimits: *mut rlimit) -> Result<isize, LinuxError> {
     match resource as u32 {
         RLIMIT_DATA => {}
         RLIMIT_STACK => {}
