@@ -4,7 +4,8 @@
 # Part 1: 基础配置 (Base Configuration)
 # ==============================================================================
 
-QEMU := qemu-system-$(ARCH)
+# QEMU := qemu-system-$(ARCH)
+QEMU := /usr/bin/qemu-system-$(ARCH)
 
 # --- 设备后缀 ---
 VDEV_SUFFIX.pci  := pci
@@ -97,10 +98,12 @@ ifneq ($(VFIO_PCI),)
   QEMU := sudo $(QEMU)
 endif
 
-# --- 图形界面 ---
-# 使用变量映射，如果 GRAPHIC=y，则添加参数，否则添加 -nographic
-GRAPHICS_ARGS.y := -device virtio-gpu-$(vdev-suffix) -vga none -serial mon:stdio
-qemu_args += $(or $(GRAPHICS_ARGS.$(GRAPHIC)),-nographic)
+# --- 图形界面 (最终 VNC 方案) ---
+# 强制 QEMU 启动一个 VNC 服务器。
+# 0.0.0.0 表示监听容器的所有网络接口。
+# :1 表示在 1 号显示器上 (对应 TCP 端口 5901)。
+qemu_args += -vnc 0.0.0.0:1
+qemu_args += -serial stdio
 
 # --- QEMU 日志 ---
 ifeq ($(QEMU_LOG),y)
@@ -145,12 +148,24 @@ qemu_args_run   := $(qemu_args) $(qemu_accel_args)
 qemu_args_debug := $(qemu_args) -s -S # -S for GDB, KVM is implicitly disabled
 
 # --- 可重用命令 ---
+# define run_qemu
+#   @printf "    $(CYAN_C)Running$(END_C) on qemu...\n"
+#   $(call run_cmd,$(QEMU),$(qemu_args_run))
+# endef
+
 define run_qemu
-  @printf "    $(CYAN_C)Running$(END_C) on qemu...\n"
-  $(call run_cmd,$(QEMU),$(qemu_args_run))
+	@printf "    $(CYAN_C)Running$(END_C) on qemu...\n"
+	@printf "    $(CYAN_C)QEMU is now a VNC server. Connect from your Windows VNC client via the container's IP and port 5901.$(END_C)\n"
+	$(QEMU) $(qemu_args_run)
 endef
+
+# define run_qemu_debug
+#   @printf "    $(CYAN_C)Debugging$(END_C) on qemu...\n"
+#   $(call run_cmd,$(QEMU),$(qemu_args_debug))
+# endef
 
 define run_qemu_debug
   @printf "    $(CYAN_C)Debugging$(END_C) on qemu...\n"
-  $(call run_cmd,$(QEMU),$(qemu_args_debug))
+  @printf "    $(CYAN_C)QEMU is now a VNC server. Connect from your Windows VNC client.$(END_C)\n"
+  $(QEMU) $(qemu_args_debug)
 endef

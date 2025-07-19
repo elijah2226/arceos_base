@@ -140,3 +140,38 @@ pub fn register_hpet_device() -> AxResult<()> {
         }
     }
 }
+
+/// 注册传统的 VGA 文本模式缓冲区为一个 UIO 设备。
+///
+/// 这是一个绝佳的、纯 MMIO 写入操作的 Demo，因为任何写入到
+/// 这块内存区域的数据都会立刻显示在屏幕上，提供即时视觉反馈。
+pub fn register_vga_text_device() -> AxResult<()> {
+    info!("尝试注册 VGA 文本缓冲区为 UIO 设备...");
+
+    // VGA 文本模式缓冲区的经典物理地址
+    let vga_paddr = axhal::mem::PhysAddr::from(0xB8000);
+    // 显存缓冲区是 80x25 个字符，每个字符占 2 字节（字符编码 + 颜色属性）。
+    // 总大小为 80 * 25 * 2 = 4000 字节 (0xFA0)。我们映射完整的 4KB (0x1000) 更方便。
+    let vga_size = 0x1000;
+    // VGA 文本缓冲区本身不会产生中断。
+    let vga_irq = None;
+
+    match manager::register_device(
+        "vga-text-0".to_string(), // 设备名
+        "1.0.0".to_string(),      // 版本
+        vec![UioMemoryRegion {
+            paddr: vga_paddr,
+            size: vga_size,
+        }],
+        vga_irq, // 此设备没有中断
+    ) {
+        Ok(id) => {
+            info!("VGA 文本缓冲区成功注册为 UIO 设备，ID 为: {}", id);
+            Ok(())
+        }
+        Err(e) => {
+            error!("注册 VGA 文本缓冲区 UIO 设备失败: {:?}", e);
+            Err(e)
+        }
+    }
+}

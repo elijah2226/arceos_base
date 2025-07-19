@@ -32,11 +32,17 @@ pub extern "C" fn main() {
             );
         }
 
+        println!("[arceos-main] 初始化 UIO VGA 文本设备...");
+        if let Err(e) = axuio::register_vga_text_device() {
+            println!("[arceos-main] 初始化 UIO VGA 文本设备失败: {:?}", e);
+        }
+
         axtask::spawn(|| {
             loop {
                 axtask::sleep(core::time::Duration::from_secs(5)); // 等待 5 秒
                 println!("[kernel-test] Manually triggering dummy UIO IRQ...");
                 axuio::uio_irq_dispatcher(0);
+                axuio::uio_irq_dispatcher(1);
             }
         });
     }

@@ -9,7 +9,7 @@ STRIP := $(CROSS_COMPILE)strip
 CFLAGS := -static -g -Wall
 LDFLAGS := -static
 
-TARGETS := uio_test hpet_uio_test
+TARGETS := uio_test hpet_uio_test vga_uio_test
 
 BUILD_DIR := build
 

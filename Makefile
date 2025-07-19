@@ -164,6 +164,8 @@ else
 # @MTOOLS_LFN=0 mcopy -i $(DISK_IMG) apps/uio/build/uio_test ::/bin/uio
 	@echo "--> Copying hpet_uio_test to /bin/hpet_test..."
 	@MTOOLS_LFN=0 mcopy -i $(DISK_IMG) apps/uio/build/hpet_uio_test ::/bin/hpet_test
+	@echo "--> Copying vga_uio_test to /bin/vga_test..."
+	@MTOOLS_LFN=0 mcopy -i $(DISK_IMG) apps/uio/build/vga_uio_test ::/bin/vga_test
 
 endif
 
