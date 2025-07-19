@@ -280,10 +280,14 @@ impl File {
         self.access_node(Cap::empty())?.get_attr()
     }
 
-    // /// Flushes the file data, writes all buffered data to the underlying device.
-    // pub fn flush_data(&self) -> AxResult {
-    //     self.access_node(Cap::WRITE)?.fdatasync()
-    // }
+    // 【【【 新增这个公共的 getter 方法 】】】
+    /// Returns a reference to the underlying VFS node.
+    ///
+    /// This bypasses capability checks and should be used with caution,
+    /// typically by internal kernel modules that need direct node access.
+    pub fn node(&self) -> &VfsNodeRef {
+        unsafe { self.node.access_unchecked() }
+    }
 }
 
 impl Directory {

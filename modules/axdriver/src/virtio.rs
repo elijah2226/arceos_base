@@ -1,11 +1,13 @@
-use core::marker::PhantomData;
-use core::ptr::NonNull;
-
+use crate::alloc::string::ToString;
 use axalloc::global_allocator;
+use axdevice_event;
 use axdriver_base::{BaseDriverOps, DevResult, DeviceType};
+use axdriver_pci::BarInfo;
 use axdriver_virtio::{BufferDirection, PhysAddr, VirtIoHal};
+use axhal::mem::PhysAddr as PhysAddrTrait;
 use axhal::mem::{phys_to_virt, virt_to_phys};
 use cfg_if::cfg_if;
+use core::{marker::PhantomData, ptr::NonNull};
 
 use crate::{AxDeviceEnum, drivers::DriverProbe};
 
@@ -115,6 +117,98 @@ impl<D: VirtIoDevMeta> DriverProbe for VirtIoDriver<D> {
             (DeviceType::Display, 0x1050) => {}
             _ => return None,
         }
+
+        info!(
+            "PCI Probe Debug: Device {}: VendorID={:#x}, DeviceID={:#x}",
+            bdf, dev_info.vendor_id, dev_info.device_id
+        );
+
+        let bar0_info: Result<BarInfo, axdriver_pci::PciError> = root.bar_info(bdf, 0);
+        // 打印 BAR0 的原始信息
+        info!(
+            "PCI Probe Debug: Device {}: BAR0 raw result: {:?}",
+            bdf, bar0_info
+        );
+
+        let (pci_bar_paddr_raw, pci_bar_size, is_memory_bar) = match bar0_info {
+            Ok(BarInfo::Memory { address, size, .. }) => {
+                info!(
+                    "Virtio PCI device {}: BAR0 is Memory BAR (addr={:#x}, size={:#x}).",
+                    bdf, address, size
+                );
+                (address as usize, size as usize, true)
+            }
+            Ok(BarInfo::IO { address, size }) => {
+                warn!(
+                    "Virtio PCI device {}: BAR0 is an IO BAR (addr={:#x}, size={:#x}). Not publishing for UIO MMIO.",
+                    bdf, address, size
+                );
+                (0, 0, false)
+            }
+            Err(e) => {
+                warn!(
+                    "Virtio PCI device {}: Failed to get BAR0 info: {:?}",
+                    bdf, e
+                );
+                return None;
+            }
+        };
+
+        let axhal_pci_bar_paddr: PhysAddrTrait = PhysAddrTrait::from(pci_bar_paddr_raw);
+
+        // 2. 从 PCI 配置空间读取 IRQ Line 寄存器
+        let irq_byte = root.read_config_byte(bdf, 0x3C);
+        info!(
+            "PCI Probe Debug: Device {}: IRQ Line raw byte: {:#x}",
+            bdf, irq_byte
+        );
+        let irq_num = if irq_byte == 0xFF || irq_byte == 0x00 {
+            warn!(
+                "Virtio PCI device {}: No valid IRQ line found (value: {:#x}).",
+                bdf, irq_byte
+            );
+            0 // 记录为 0，或者你可以选择 None
+        } else {
+            irq_byte as usize
+        };
+
+        info!(
+            "PCI Probe Debug: Device {}: Final IRQ Num for UIO: {:#x}",
+            bdf, irq_num
+        );
+
+        let device_name_str = format!(
+            "virtio-{}-{}",
+            match D::DEVICE_TYPE {
+                DeviceType::Net => "net",
+                DeviceType::Block => "blk",
+                DeviceType::Display => "gpu",
+                _ => "Unknown",
+            },
+            bdf.to_string()
+        );
+
+        // 如果是 Memory BAR，就发布其地址信息；否则，mmio_region 为 None。
+        let mmio_region_info: Option<(PhysAddrTrait, usize)> = if is_memory_bar {
+            Some((PhysAddrTrait::from(pci_bar_paddr_raw), pci_bar_size))
+        } else {
+            None
+        };
+
+        info!(
+            "PCI Probe Debug: Device {}: mmio_region_info content: {:?}",
+            bdf, mmio_region_info
+        );
+
+        axdevice_event::publish_device_info(axdevice_event::DiscoveredDeviceInfo {
+            device_type: D::DEVICE_TYPE,
+            name: device_name_str,
+            pci_bdf: bdf.to_string(),
+            mmio_region: mmio_region_info,
+            irq_num: Some(irq_num),
+        });
+        info!("Published device info for {}.", bdf.to_string());
+        // 【【【 发布结束 】】】
 
         if let Some((ty, transport)) =
             axdriver_virtio::probe_pci_device::<VirtIoHalImpl>(root, bdf, dev_info)

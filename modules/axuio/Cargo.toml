@@ -14,6 +14,7 @@ axtask = { workspace = true }  # 用于任务等待和唤醒
 axmm = { workspace = true }    # 用于内存管理和 mmap
 axfs = { workspace = true }    # 用于设备文件节点
 axdriver = { workspace = true } # 用于设备模型
+axdevice_event = { workspace = true } # 用于设备事件处理
 axio = { workspace = true, optional = true }  # 用于 I/O traits 和 Result
 axerrno = { workspace = true, optional = true } # 用于错误码
 axfs_vfs = { version = "0.1", optional = true }

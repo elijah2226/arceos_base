@@ -18,7 +18,7 @@ irq = []
 tls = ["alloc"]
 rtc = ["x86_rtc", "riscv_goldfish", "arm_pl031"]
 uspace = ["paging"]
-default = []
+default = ["irq"]
 
 [dependencies]
 log = "=0.4.21"

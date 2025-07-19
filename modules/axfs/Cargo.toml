@@ -38,6 +38,7 @@ axdriver = { workspace = true, features = ["block"] }
 axdriver_block = { git = "https://github.com/arceos-org/axdriver_crates.git", tag = "v0.1.2" }
 lwext4_rust = { git = "https://github.com/Azure-stars/lwext4_rust.git", default-features = false, optional = true }
 axns = { workspace = true }
+lazy_static = { workspace = true } # 确保启用
 
 [dependencies.fatfs]
 git = "https://github.com/rafalh/rust-fatfs"
