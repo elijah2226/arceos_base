@@ -165,10 +165,7 @@ debug:
 justrun:
 # 	$(call run_qemu)
 
-# 	@echo "    Running on qemu (with a fixed command)..."
-# 	@qemu-system-x86_64 -m 128M -smp 1 -machine q35 -kernel arceos-main/arceos-main_x86_64-qemu-q35.elf \
-# 	-device virtio-net-pci,netdev=net0 -netdev user,id=net0 -nographic
-
+	@echo "    Running on qemu (app: $(APP), kernel: $(OUT_ELF), disk: $(DISK_IMG))..."
 	@qemu-system-x86_64 -m $(MEM) -smp $(SMP) -machine q35 \
 		-kernel $(OUT_ELF) \
 		-drive file=$(DISK_IMG),format=raw,if=virtio \

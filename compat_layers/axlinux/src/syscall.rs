@@ -237,6 +237,8 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
             tf.arg2() as _,
             tf.arg3() as _,
         ),
+        Sysno::pause => sys_pause(),
+        Sysno::rename => sys_rename(tf.arg0().into(), tf.arg1().into()),
 
         _ => {
             warn!("Unimplemented syscall: {}", sysno);

@@ -6,6 +6,9 @@ use crate::{
     time::TimeValueLike,
 };
 
+use axtask::current;
+// use axsignal::Signo;
+
 pub fn sys_sched_yield() -> LinuxResult<isize> {
     axtask::yield_now();
     Ok(0)
@@ -101,4 +104,17 @@ pub fn sys_clock_nanosleep(
     } else {
         Ok(0)
     }
+}
+
+pub fn sys_pause() -> LinuxResult<isize> {
+    info!("sys_pause <= Task({:?}) pausing...", current().id());
+
+    // axtask 应该有一个让任务永久休眠的方法，或者使用 WaitQueue。
+    // 我们用一个永远不会被 notify 的 WaitQueue 模拟：
+    use axtask::WaitQueue; // 确保 WaitQueue 导入
+
+    let dummy_wq = WaitQueue::new();
+    dummy_wq.wait(); // 当前任务将永久休眠在此，直到有信号将其唤醒
+
+    Err(LinuxError::EINTR)
 }

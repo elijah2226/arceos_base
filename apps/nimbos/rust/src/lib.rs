@@ -11,6 +11,8 @@ mod time;
 
 pub use time::*;
 use bitflags::bitflags;
+use core::ffi::c_char;
+use linux_raw_sys::general::AT_FDCWD;
 
 bitflags! {
     pub struct OpenFlags: u32 {
@@ -33,6 +35,28 @@ pub extern "C" fn _start() -> ! {
 #[unsafe(no_mangle)]
 fn main() -> i32 {
     panic!("Cannot find main!");
+}
+
+#[macro_export]
+macro_rules! c_str_lit {
+    ($s:literal) => {
+        concat!($s, "\0").as_ptr() as *const c_char
+    };
+}
+
+
+#[macro_export]
+macro_rules! test_case {
+    ($name:expr, $test_fn:expr) => { 
+        let test_result = $test_fn(); 
+        
+        if test_result {
+            println!("--- Test case [ {} ] PASSED ---\n", $name);
+        } else {
+            println!("--- Test case [ {} ] FAILED! ---\n", $name);
+            exit(-1);
+        }
+    };
 }
 
 use syscall::*;
@@ -91,38 +115,59 @@ pub fn thread_spawn(entry: fn(usize) -> i32, arg: usize) -> isize {
     sys_clone(entry, arg, newsp)
 }
 
-pub fn open(path: &str, flags: OpenFlags) -> isize {
+pub fn open(path: *const c_char, flags: OpenFlags) -> isize {
     syscall::sys_open(path, flags.bits())
 }
 
-pub fn close(fd: usize) -> isize {
+pub fn close(fd : usize) -> isize {
     syscall::sys_close(fd)
 }
 
 /// Removes a file. To remove a directory, use `rmdir`.
-pub fn unlink(path: &str) -> isize {
+pub fn unlink(path: *const c_char) -> isize {
     syscall::sys_unlink(path)
 }
 
 /// Removes an empty directory.
-pub fn rmdir(path: &str) -> isize {
+pub fn rmdir(path: *const c_char) -> isize {
     syscall::sys_rmdir(path)
 }
 
-pub fn symlink(target: &str, linkpath: &str) -> isize {
+pub fn symlink(target: *const c_char, linkpath:  *const c_char) -> isize {
     syscall::sys_symlink(target, linkpath)
 }
 
-pub fn readlink(path: &str, buf: &mut [u8]) -> isize {
+pub fn readlink(path:  *const c_char, buf: &mut [u8]) -> isize {
     syscall::sys_readlink(path, buf)
 }
 
-pub fn chmod(path: &str, mode: u32) -> isize {
+pub fn chmod(path:*const c_char, mode: u32) -> isize {
     syscall::sys_chmod(path, mode)
 }
 
-pub fn chown(path: &str, uid: u32, gid: u32) -> isize {
+pub fn chown(path: *const c_char, uid: u32, gid: u32) -> isize {
     syscall::sys_chown(path, uid, gid)
+}
+
+pub fn access(path: *const c_char, mode: u32) -> isize {
+    syscall::sys_access(path, mode)
+}
+
+pub fn mknod(path: *const c_char, mode: u32) -> isize {
+    syscall::sys_mknodat(AT_FDCWD, path, mode)
+}
+
+pub fn mkdir(path: *const c_char) -> isize {
+    let default_mode = 0o755; 
+        sys_mkdirat(AT_FDCWD, path, default_mode)
+}
+
+pub fn pause() -> isize {
+    syscall::sys_pause()
+}
+
+pub fn rename(old_path: *const c_char, new_path: *const c_char) -> isize {
+    syscall::sys_rename(old_path, new_path)
 }
 
 #[repr(C)]
@@ -147,7 +192,7 @@ impl Stat {
     }
 }
 
-pub fn stat(path: &str, stat_buf: &mut Stat) -> isize {
+pub fn stat(path:*const c_char, stat_buf: &mut Stat) -> isize {
     syscall::sys_stat(path, stat_buf)
 }
 pub fn fstat(fd: usize, stat_buf: &mut Stat) -> isize {

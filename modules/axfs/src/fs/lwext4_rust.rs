@@ -431,24 +431,3 @@ impl KernelDevOp for Disk {
         Ok(new_pos)
     }
 }
-
-impl AxVfsNodeOpsExt for FileWrapper {
-    fn create_symlink(&self, name: &str, target: &str) -> VfsResult {
-        let fpath = self.path_deal_with(name);
-        self.0.lock().file_symlink(target, &fpath).map_err(|e| e.try_into().unwrap())
-    }
-
-    fn read_link(&self) -> VfsResult<String> {
-        let path = self.0.lock().get_path().to_str().unwrap().to_string();
-        self.0.lock().file_readlink(&path).map_err(|e| e.try_into().unwrap())
-    }
-
-    fn set_permission(&self, perm: VfsNodePerm) -> VfsResult {
-        self.0.lock().file_mode_set(perm.bits() as u32).map(|_|()).map_err(|e| e.try_into().unwrap())
-    }
-
-    fn set_owner(&self, uid: u32, gid: u32) -> VfsResult {
-        let path = self.0.lock().get_path().to_str().unwrap().to_string();
-        self.0.lock().file_chown(&path, uid, gid).map_err(|e| e.try_into().unwrap())
-    }
-}

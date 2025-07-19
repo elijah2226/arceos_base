@@ -110,7 +110,19 @@ pub fn access(path: &str, mode: u32) -> io::Result<()> {
 /// Creates a filesystem node (file, device, etc.) at the specified path.
 pub fn mknod(path: &str, ty: FileType, perm: Permissions) -> io::Result<()> {
     let (parent, name) = crate::root::lookup_parent(None, path)?;
-    parent.create(name, ty)
+    parent.create(name, ty)?;
+    #[cfg(feature = "lwext4_rs")]
+    if let Some(ext_dir_wrapper) = parent.as_any().downcast_ref::<crate::fs::lwext4_rust::FileWrapper>() {
+        ext_dir_wrapper.set_permission(perm)?;
+        return Ok(()); 
+    }
+    #[cfg(feature = "fatfs")]
+    if parent.as_any().is::<crate::fs::fatfs::DirWrapper<'static, crate::dev::Disk>>() {
+        return Ok(());
+    }
+    
+    // 如果都不匹配，或文件系统不支持
+    Err(axio::Error::from(AxError::Unsupported))
 }
 
 /// Creates a new symbolic link on the filesystem.
@@ -154,7 +166,7 @@ pub fn read_link(path: &str) -> IoResult<String> {
     }
     
     #[cfg(feature = "fatfs")]
-    if any_node.is::<FatDirWrapper<'static, Disk>>() || any_node.is::<FatDirWrapper<'static, Disk>>() {
+    if any_node.is::<FatDirWrapper<'static, Disk>>() || any_node.is::<FatFileWrapper<'static, Disk>>() {
         // fatfs 不支持，直接返回一个 io::Error
         return Err(axio::Error::from(AxError::Unsupported));
     }

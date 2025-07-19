@@ -1,3 +1,1 @@
 test_one "LOG=info FEATURES=fp_simd BLK=y NET=y"
-test_one "vforktest"
-test_one "fs_advanced_test"

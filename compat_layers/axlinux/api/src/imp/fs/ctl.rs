@@ -20,6 +20,7 @@ use crate::{
 
 use axfs::fops::FilePerm;
 use axfs::fops::FileType as AxFileType;
+use axfs::api;
 use linux_raw_sys::general::{
         S_IFMT, S_IFREG, S_IFDIR, S_IFLNK, S_IFIFO, S_IFCHR, S_IFBLK
     };
@@ -335,4 +336,14 @@ pub fn sys_mknodat(dirfd: c_int, path: UserConstPtr<c_char>, mode: u32, _dev: u6
     axfs::api::mknod(path.as_str(), file_type, perm)?;
     // TODO: 对于设备文件，需要用 dev 来注册设备
     Ok(0)
+}
+
+pub fn sys_rename(old_path_ptr: UserConstPtr<c_char>, new_path_ptr: UserConstPtr<c_char>) -> LinuxResult<isize> {
+    let old_path = old_path_ptr.get_as_str()?;
+    let new_path = new_path_ptr.get_as_str()?;
+    debug!("sys_rename <= old: {:?}, new: {:?}", old_path, new_path);
+
+    api::rename(old_path, new_path)?;
+
+    Ok(0) 
 }
